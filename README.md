@@ -8,29 +8,93 @@ pipeline de sécurité.
 Conçue et maintenue par Alexandre BOIGUES (Telemach Learning, organisme de formation certifié Qualiopi)
 pour animer des formations DevSecOps sur une chaîne d'outils réelle, puis la détruire en fin de session.
 
+**Par où commencer ?** [Une semaine chez Néobanque Exemple](docs/scenario-entreprise.md) : une banque
+fictive, cinq journées, et des incidents réellement survenus sur ce dépôt (régression proposée par
+Dependabot, CVE critiques sur Tomcat, faux positif DAST, promotion sans relecture, API sans
+authentification qu'aucune gate n'a vue), chacun relié à sa trace (PR, run de CI, journal).
+
 ## Architecture
 
-```
-                         terraform/platform (étape 1)                 terraform/labs (étape 2)
-  ┌──────────────────────────────────────────────────────────┐   ┌────────────────────────────────────┐
-  │  VPC privé                                               │   │ GitLab : groupe, 1 utilisateur +   │
-  │  ┌───────────────────┐   ┌──────────────┐   ┌──────────┐ │   │ 1 projet par apprenant, deploy     │
-  │  │ GitLab CE 19.4    │<──│ GitLab Runner│   │ Kapsule  │ │   │ token lecture, jeton GitOps        │
-  │  │ + registry        │   │ Docker, non  │   │ Cilium   │ │   │                                    │
-  │  │ Let's Encrypt     │   │ privilégié   │   │ 2 noeuds │ │   │ Kubernetes : Argo CD, 1 namespace  │
-  │  └───────────────────┘   └──────────────┘   └──────────┘ │   │ par apprenant (PSA restricted,     │
-  │  Secret Manager : mot de passe root                      │   │ NetworkPolicy), Application Argo   │
-  └──────────────────────────────────────────────────────────┘   └────────────────────────────────────┘
-                   state distant : Object Storage versionné (terraform/bootstrap)
+```mermaid
+flowchart LR
+    formateur(["Formateur<br/>terraform apply"])
+    apprenant(["Apprenant<br/>navigateur + git"])
+
+    subgraph scw["Scaleway fr-par"]
+        direction LR
+        state[("Object Storage<br/>state Terraform<br/>versionné, verrouillé")]
+        secret["Secret Manager<br/>mot de passe root"]
+        subgraph vpc["VPC privé - étape platform"]
+            direction TB
+            gitlab["GitLab CE 19.4<br/>+ registry<br/>Let's Encrypt"]
+            runner["GitLab Runner<br/>non privilégié<br/>Buildah rootless"]
+            subgraph k8s["Kapsule - Cilium"]
+                argocd["Argo CD"]
+                subgraph ns["1 namespace par apprenant<br/>PSA restricted + NetworkPolicy"]
+                    app["bank-api<br/>2 réplicas"]
+                end
+            end
+        end
+    end
+
+    formateur -- "1. platform" --> vpc
+    formateur -- "2. labs : groupe, projets,<br/>jetons, namespaces" --> gitlab
+    formateur -.-> state
+    gitlab -.-> secret
+    apprenant -- "merge request" --> gitlab
+    gitlab -- "jobs" --> runner
+    runner -- "image scannée" --> gitlab
+    argocd -- "tire l'état désiré<br/>(deploy token lecture)" --> gitlab
+    argocd -- "synchronise" --> app
+    app -- "tire l'image" --> gitlab
 ```
 
 Chaîne de livraison d'un apprenant :
 
+```mermaid
+flowchart TB
+    dev(["Développeur"]) --> branche["Branche + merge request<br/>push direct sur main refusé"]
+
+    subgraph ci["Pipeline - chaque gate est bloquante"]
+        direction TB
+        tests["Tests + couverture >= 80 %"]
+        subgraph analyse["Analyses en parallèle"]
+            direction LR
+            sast["SAST<br/>CodeQL / Semgrep"]
+            secrets["Secrets<br/>tout l'historique"]
+            sca["SCA + SBOM<br/>Trivy"]
+            iac["IaC<br/>Terraform, K8s, Dockerfile"]
+        end
+        image["Image construite<br/>sans privilège"]
+        scan["Scan d'image<br/>OS + JRE"]
+        dast["DAST ZAP<br/>application démarrée"]
+        tests --> analyse --> image --> scan --> dast
+    end
+
+    branche --> tests
+    dast --> revue{"Relecture<br/>humaine"}
+    revue -- "fusion" --> main[("main")]
+    main --> bot["Bot GitOps :<br/>MR « Déployer sha »"]
+    bot --> revue2{"Relecture<br/>humaine"}
+    revue2 -- "fusion" --> argo["Argo CD synchronise<br/>le namespace"]
+    argo --> psa{"Admission<br/>PSA restricted"}
+    psa -- "pod conforme" --> run(["En service"])
+
+    tests -. "échec" .-> stop(["Arrêt : correction<br/>dans la branche"])
+    analyse -. "échec" .-> stop
+    scan -. "échec" .-> stop
+    dast -. "échec" .-> stop
+    revue -. "refus" .-> stop
+    revue2 -. "refus : le lab reste<br/>sur la version précédente" .-> stop
+    psa -. "pod root ou privilégié" .-> stop
+
+    classDef gate fill:#fde2e1,stroke:#c0392b,color:#000
+    classDef humain fill:#e1effd,stroke:#1f5fa8,color:#000
+    class tests,sast,secrets,sca,iac,scan,dast,psa gate
+    class revue,revue2 humain
 ```
-merge request ─> GitLab CI ─> tests ─> SAST / secrets / SCA+SBOM / IaC ─> image (Buildah rootless)
-              ─> scan image ─> DAST (ZAP) ─> fusion par l'apprenant ─> MR GitOps ouverte par le bot
-              ─> fusion par l'apprenant ─> Argo CD synchronise le namespace
-```
+
+En rouge, les gates automatiques ; en bleu, les décisions humaines.
 
 La CI ne détient **aucun identifiant du cluster** et ne pousse jamais sur `main` : elle propose le nouvel
 état désiré par merge request, un humain le fusionne, Argo CD le tire.
@@ -59,7 +123,7 @@ pousser sur `main` et de fusionner (`.claude/settings.json`). Vulnérabilité : 
 | `gitops/` | Manifestes Kustomize durcis ; overlays `lab` (Kapsule) et `openshift` (Route) |
 | `.gitlab-ci.yml` | Pipeline de référence |
 | `Jenkinsfile`, `bitbucket-pipelines.yml` | Mêmes contrôles sur Jenkins et Bitbucket |
-| `docs/` | Gates de sécurité avec exemples, journal de sécurité, comparatif CI, OpenShift, XL Deploy/Release, programme de formation |
+| `docs/` | Étude de cas Néobanque Exemple, gates de sécurité avec exemples, journal de sécurité, comparatif CI, OpenShift, XL Deploy/Release, programme de formation |
 | `.github/` | CI (gates), CodeQL, Dependabot, CODEOWNERS |
 
 ## Déployer une session

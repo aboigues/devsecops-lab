@@ -7,21 +7,51 @@ pour ne pas faire échouer la CI. Chaque exemple peut être rejoué en formation
 
 ## Vue d'ensemble
 
+```mermaid
+flowchart TB
+    dev(["Développeur"]) --> branche["Branche + merge request<br/>push direct sur main refusé"]
+
+    subgraph ci["Pipeline - chaque gate est bloquante"]
+        direction TB
+        tests["Tests + couverture >= 80 %"]
+        subgraph analyse["Analyses en parallèle"]
+            direction LR
+            sast["SAST<br/>CodeQL / Semgrep"]
+            secrets["Secrets<br/>tout l'historique"]
+            sca["SCA + SBOM<br/>Trivy"]
+            iac["IaC<br/>Terraform, K8s, Dockerfile"]
+        end
+        image["Image construite<br/>sans privilège"]
+        scan["Scan d'image<br/>OS + JRE"]
+        dast["DAST ZAP<br/>application démarrée"]
+        tests --> analyse --> image --> scan --> dast
+    end
+
+    branche --> tests
+    dast --> revue{"Relecture<br/>humaine"}
+    revue -- "fusion" --> main[("main")]
+    main --> bot["Bot GitOps :<br/>MR « Déployer sha »"]
+    bot --> revue2{"Relecture<br/>humaine"}
+    revue2 -- "fusion" --> argo["Argo CD synchronise<br/>le namespace"]
+    argo --> psa{"Admission<br/>PSA restricted"}
+    psa -- "pod conforme" --> run(["En service"])
+
+    tests -. "échec" .-> stop(["Arrêt : correction<br/>dans la branche"])
+    analyse -. "échec" .-> stop
+    scan -. "échec" .-> stop
+    dast -. "échec" .-> stop
+    revue -. "refus" .-> stop
+    revue2 -. "refus : le lab reste<br/>sur la version précédente" .-> stop
+    psa -. "pod root ou privilégié" .-> stop
+
+    classDef gate fill:#fde2e1,stroke:#c0392b,color:#000
+    classDef humain fill:#e1effd,stroke:#1f5fa8,color:#000
+    class tests,sast,secrets,sca,iac,scan,dast,psa gate
+    class revue,revue2 humain
 ```
- poste du développeur        pull request / merge request              déploiement
- ───────────────────  ──────────────────────────────────────────  ───────────────────────
-  gitleaks (option)    main protégée : aucun push direct             MR GitOps proposée par
-  garde-fou agent IA   ├─ tests + couverture >= 80 %                 le bot, fusionnée par
-                       ├─ SAST (CodeQL / Semgrep)                    un humain ; Argo CD tire
-                       ├─ secrets sur tout l'historique (gitleaks)   l'état désiré ; Pod
-                       ├─ SCA + SBOM (Trivy sur le JAR)              Security Admission
-                       ├─ IaC : Terraform, manifestes, Dockerfile    « restricted » refuse
-                       ├─ image : scan OS + JRE                      tout pod privilégié
-                       ├─ DAST : ZAP contre l'app démarrée
-                       ├─ sécurité des workflows CI (zizmor)
-                       ├─ revue des dépendances ajoutées
-                       └─ fusion par un humain uniquement
-```
+
+En rouge, les gates automatiques ; en bleu, les décisions humaines. Ces gates en situation, sur
+une semaine d'entreprise : [`scenario-entreprise.md`](scenario-entreprise.md).
 
 | # | Gate | Outil | Seuil de blocage | GitHub (ce dépôt) | GitLab (labs) |
 |---|---|---|---|---|---|
