@@ -61,6 +61,7 @@ pipeline {
                 stage('IaC') {
                     steps {
                         sh 'docker run --rm -v "$WORKSPACE:/w" -w /w $TRIVY config --exit-code 1 --severity MEDIUM,HIGH,CRITICAL terraform/'
+                        sh 'docker run --rm -v "$WORKSPACE:/w" -w /w $TRIVY config --exit-code 1 --severity MEDIUM,HIGH,CRITICAL app/'
                     }
                 }
             }
@@ -109,9 +110,13 @@ pipeline {
                     sh '''
                         docker run --rm -v "$WORKSPACE:/w" -w /w mikefarah/yq:4.53.6 -i \
                           ".images[0].newName = \\"${IMAGE%:*}\\" | .images[0].newTag = \\"${IMAGE##*:}\\"" gitops/overlays/lab/kustomization.yaml
+                        # Jamais de push sur main : branche dédiée + merge request fusionnée par un humain
+                        # (options de push GitLab ; sur GitHub/Bitbucket, appel API de création de PR)
+                        git checkout -b "gitops/${IMAGE##*:}"
                         git -c user.name=gitops-bot -c user.email=gitops-bot@noreply.invalid \
-                          commit -am "chore(gitops): bank-api ${IMAGE##*:} [skip ci]"
-                        git push "https://gitops-bot:${GITOPS_TOKEN}@${GIT_URL#https://}" HEAD:main
+                          commit -am "chore(gitops): bank-api ${IMAGE##*:}"
+                        git push "https://gitops-bot:${GITOPS_TOKEN}@${GIT_URL#https://}" "HEAD:refs/heads/gitops/${IMAGE##*:}" \
+                          -o merge_request.create -o merge_request.target=main -o merge_request.remove_source_branch
                     '''
                 }
             }

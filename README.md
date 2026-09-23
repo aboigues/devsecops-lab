@@ -27,11 +27,26 @@ pour animer des formations DevSecOps sur une chaîne d'outils réelle, puis la d
 Chaîne de livraison d'un apprenant :
 
 ```
-git push ─> GitLab CI ─> tests ─> SAST / secrets / SCA+SBOM / IaC ─> image (Buildah rootless)
-        ─> scan image ─> DAST (ZAP) ─> commit du tag dans gitops/ ─> Argo CD synchronise le namespace
+merge request ─> GitLab CI ─> tests ─> SAST / secrets / SCA+SBOM / IaC ─> image (Buildah rootless)
+              ─> scan image ─> DAST (ZAP) ─> fusion par l'apprenant ─> MR GitOps ouverte par le bot
+              ─> fusion par l'apprenant ─> Argo CD synchronise le namespace
 ```
 
-La CI ne détient **aucun identifiant du cluster** : elle met à jour l'état désiré dans Git, Argo CD le tire.
+La CI ne détient **aucun identifiant du cluster** et ne pousse jamais sur `main` : elle propose le nouvel
+état désiré par merge request, un humain le fusionne, Argo CD le tire.
+
+## Gates de sécurité
+
+Onze contrôles bloquants, de la branche protégée au DAST, chacun illustré par un cas réel et la sortie
+de l'outil (injection SQL, clé AWS restée dans l'historique, Log4Shell, pod privilégié, injection dans
+un workflow GitHub...) : **[`docs/gates-securite.md`](docs/gates-securite.md)**. Les constats réels
+traités sur ce dépôt sont dans [`docs/journal-securite.md`](docs/journal-securite.md).
+
+## Contribuer
+
+Aucun commit direct sur `main`, pour personne (ruleset GitHub sans exception) : branche, pull request,
+toutes les gates de la CI au vert, fusion par un humain. Les agents IA (Claude Code) ont interdiction de
+pousser sur `main` et de fusionner (`.claude/settings.json`). Vulnérabilité : voir [`SECURITY.md`](SECURITY.md).
 
 ## Contenu
 
@@ -44,7 +59,8 @@ La CI ne détient **aucun identifiant du cluster** : elle met à jour l'état d�
 | `gitops/` | Manifestes Kustomize durcis ; overlays `lab` (Kapsule) et `openshift` (Route) |
 | `.gitlab-ci.yml` | Pipeline de référence |
 | `Jenkinsfile`, `bitbucket-pipelines.yml` | Mêmes contrôles sur Jenkins et Bitbucket |
-| `docs/` | Comparatif CI, OpenShift, XL Deploy/Release, programme de formation |
+| `docs/` | Gates de sécurité avec exemples, journal de sécurité, comparatif CI, OpenShift, XL Deploy/Release, programme de formation |
+| `.github/` | CI (gates), CodeQL, Dependabot, CODEOWNERS |
 
 ## Déployer une session
 
@@ -89,7 +105,12 @@ soit moins de 4 EUR pour une session de 3 jours laissée allumée en continu.
   système de fichiers en lecture seule, capacités supprimées, seccomp `RuntimeDefault`.
 - **State Terraform** : il contient des secrets ; bucket privé, versionné, verrouillage natif (`use_lockfile`).
 - **Contrôles bloquants** : HIGH/CRITICAL corrigeables sur dépendances et image, MEDIUM+ sur l'IaC,
-  toute alerte ZAP, couverture < 80 %.
+  toute alerte ZAP, couverture < 80 % (détail et exemples : `docs/gates-securite.md`).
+- **Chaîne d'approvisionnement de la CI** : actions GitHub épinglées par SHA, images d'outils par digest,
+  `GITHUB_TOKEN` en lecture seule, workflows analysés par zizmor et CodeQL, Dependabot avec délai de
+  carence de 7 jours, fusion toujours humaine.
+- **Branches** : `main` protégée sur GitHub (ruleset) et dans chaque projet apprenant GitLab
+  (push « no one », pipeline vert et discussions résolues avant fusion).
 
 ## Limites connues (assumées pour un lab)
 

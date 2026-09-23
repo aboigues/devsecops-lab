@@ -1,5 +1,5 @@
 # Overlay Kapsule (lab Scaleway) : image du registry GitLab de l'apprenant.
-# Le bloc images est réécrit par le job CI « gitops:update » à chaque commit sur main.
+# Le bloc images est proposé par le job CI « gitops:propose » (merge request) à chaque changement applicatif sur main.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:

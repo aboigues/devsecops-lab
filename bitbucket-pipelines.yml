@@ -38,6 +38,7 @@ definitions:
         image: aquasec/trivy:0.74.0
         script:
           - trivy config --severity MEDIUM,HIGH,CRITICAL --exit-code 1 terraform/
+          - trivy config --severity MEDIUM,HIGH,CRITICAL --exit-code 1 app/
     - step: &image
         name: Image + scan + DAST
         services: [docker]
@@ -81,5 +82,12 @@ pipelines:
             - wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.53.6/yq_linux_amd64 && chmod +x /usr/local/bin/yq
             - export TAG="${BITBUCKET_COMMIT:0:8}"
             - yq -i '.images[0].newName = strenv(REGISTRY) + "/devsecops-lab/bank-api" | .images[0].newTag = strenv(TAG)' gitops/overlays/lab/kustomization.yaml
-            - git commit -am "chore(gitops) bank-api $TAG [skip ci]"
-            - git push "https://x-token-auth:${GITOPS_TOKEN}@bitbucket.org/${BITBUCKET_REPO_FULL_NAME}.git" HEAD:main
+            # Jamais de push sur main : branche dédiée + pull request, fusionnée par un humain
+            # (restriction de branche Bitbucket : main sans écriture directe, fusion via PR uniquement)
+            - git checkout -b "gitops/$TAG"
+            - git commit -am "chore(gitops): bank-api $TAG"
+            - git push "https://x-token-auth:${GITOPS_TOKEN}@bitbucket.org/${BITBUCKET_REPO_FULL_NAME}.git" "HEAD:refs/heads/gitops/$TAG"
+            - >
+              curl -fsS -X POST -H "Authorization: Bearer $GITOPS_TOKEN" -H "Content-Type: application/json"
+              "https://api.bitbucket.org/2.0/repositories/${BITBUCKET_REPO_FULL_NAME}/pullrequests"
+              -d "{\"title\": \"Déployer bank-api $TAG en lab\", \"source\": {\"branch\": {\"name\": \"gitops/$TAG\"}}, \"destination\": {\"branch\": {\"name\": \"main\"}}, \"close_source_branch\": true}"

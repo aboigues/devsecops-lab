@@ -1,0 +1,8 @@
+# Toute modification passe par une PR relue par le mainteneur.
+# Les chemins sensibles sont listés explicitement : ils définissent les gates et la plateforme.
+*                    @aboigues
+/.github/            @aboigues
+/.claude/            @aboigues
+/.trivyignore        @aboigues
+/terraform/          @aboigues
+/.gitlab-ci.yml      @aboigues

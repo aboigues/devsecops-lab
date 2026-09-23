@@ -5,6 +5,9 @@ Plateforme de formation DevSecOps déployée à la demande sur Scaleway par Terr
 
 ## Règles critiques
 
+- **Jamais de commit ni de push sur `main`** : toujours une branche + une PR. **Claude ne fusionne jamais une PR**
+  (ni `gh pr merge`, ni approbation) : seul Alexandre fusionne. Interdictions matérialisées dans
+  `.claude/settings.json` et par le ruleset GitHub de `main`.
 - **Toujours répondre en français**, orthographe complète (accents, diacritiques). Tutoyer Alexandre.
 - **Zéro emoji** — partout, sans exception (code, docs, commits, réponses).
 - **Aucun `terraform apply` ni `destroy` sans accord explicite d'Alexandre dans la session en cours.**
@@ -25,7 +28,7 @@ Plateforme de formation DevSecOps déployée à la demande sur Scaleway par Terr
 - Les contrôles du pipeline sont bloquants ; on corrige la cause plutôt que de baisser un seuil.
 - Commits en français, format conventionnel (`feat:`, `fix:`, `docs:`...).
 
-## Vérifications locales avant push
+## Vérifications locales avant push (sur la branche de la PR)
 
 ```bash
 terraform fmt -check -recursive terraform/
