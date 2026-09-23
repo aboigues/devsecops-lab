@@ -28,7 +28,7 @@ moteur CI principal, cible Kubernetes ou OpenShift, profondeur Terraform.
 |---|---|---|
 | 1h | CALMS (Culture, Automation, Lean, Measurement, Sharing) ; coût d'un défaut selon la phase de détection ; atelier « où sont nos contrôles aujourd'hui ? » | Atelier collectif |
 | 1h30 | Stratégie de tests : pyramide unitaires / web / intégration, couverture comme garde-fou (pas comme objectif) | Démonstration + lab 1 |
-| 2h | GitLab CI : stages, jobs, artefacts, rapports JUnit et couverture ; règles de fusion | Lab 2 : premier pipeline vert |
+| 2h | GitLab CI : stages, jobs, artefacts, rapports JUnit et couverture ; branche protégée, merge request obligatoire, fusion humaine | Lab 2 : push direct refusé, premier pipeline vert en MR |
 | 2h | Secrets : détection, historique Git, rotation ; SAST Semgrep, lecture et tri des résultats (vrai / faux positif) | Lab 3 : secret injecté puis traité |
 | 0h30 | Quiz et bilan de la journée | Évaluation formative |
 
@@ -51,6 +51,11 @@ moteur CI principal, cible Kubernetes ou OpenShift, profondeur Terraform.
 | 1h | DAST avec ZAP : lecture du rapport, correction (en-têtes de sécurité) | Lab 10 |
 | 0h30 | Orchestration de release en entreprise : positionnement de XL Release / XL Deploy face au GitOps | Exposé + discussion |
 | 2h | Mise en situation : une vulnérabilité, un secret et une dérive de configuration sont introduits ; chaque participant les détecte et les corrige jusqu'au déploiement | Évaluation sommative |
+
+## Supports
+
+Cas concrets de chaque gate (sorties réelles des outils, scénarios à rejouer) : `docs/gates-securite.md`.
+Cas réels du dépôt : `docs/journal-securite.md`.
 
 ## Suivi et évaluation
 

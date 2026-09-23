@@ -1,7 +1,7 @@
 # Pipeline DevSecOps de référence : chaque contrôle de sécurité est un job bloquant,
 # placé le plus tôt possible (shift-left). Ordre : code -> dépendances -> IaC -> image -> exécution.
 #
-#   test ──> sast / secrets / sca / iac ──> image ──> scan image ──> dast ──> gitops:update ──> Argo CD
+#   test ──> sast / secrets / sca / iac ──> image ──> scan image ──> dast ──> gitops:propose (MR) ──> fusion humaine ──> Argo CD
 #
 # Toutes les images d'outils sont épinglées : un pipeline de sécurité ne doit pas changer sans revue.
 
@@ -85,6 +85,7 @@ iac:
     - wget -qO- https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.8.1/kustomize_v5.8.1_linux_amd64.tar.gz | tar xz -C /usr/local/bin
   script:
     - trivy config --exit-code 1 --severity MEDIUM,HIGH,CRITICAL terraform/
+    - trivy config --exit-code 1 --severity MEDIUM,HIGH,CRITICAL app/   # Dockerfile
     # On scanne ce qui sera réellement appliqué (overlays rendus), pas la base incomplète
     - mkdir -p rendered
     - kustomize build gitops/overlays/lab > rendered/lab.yaml
@@ -121,31 +122,43 @@ dast:
     - name: $IMAGE
       alias: bank-api
   script:
-    - mkdir -p /zap/wrk
+    - mkdir -p /zap/wrk && cp .zap/baseline.conf /zap/wrk/
     - until curl -fsS http://bank-api:8080/actuator/health/readiness; do sleep 3; done
-    # Échec sur toute alerte de niveau WARN ou FAIL (pas d'option -I)
-    - zap-baseline.py -t http://bank-api:8080/api/accounts -r zap-report.html -J zap-report.json
+    # Échec sur toute alerte de niveau WARN ou FAIL (pas d'option -I) ; exceptions justifiées dans .zap/
+    - zap-baseline.py -t http://bank-api:8080/api/accounts -c baseline.conf -r zap-report.html -J zap-report.json
   after_script:
     - cp /zap/wrk/zap-report.* "$CI_PROJECT_DIR/" || true
   artifacts:
     when: always
     paths: [zap-report.html, zap-report.json]
 
-# --- 7. GitOps : la CI ne déploie jamais, elle met à jour l'état désiré dans Git ---------
-# Argo CD (pull) détecte le commit et synchronise le cluster. Aucun identifiant cluster dans la CI.
-gitops:update:
+# --- 7. GitOps : la CI ne déploie jamais, elle PROPOSE le nouvel état désiré ----------------
+# Le bot pousse une branche `gitops/<sha>` et ouvre une merge request (options de push GitLab).
+# Un humain relit et fusionne ; Argo CD (pull) synchronise alors le cluster.
+# Aucun identifiant cluster dans la CI, aucun push direct sur `main` (branche protégée « no one »).
+gitops:propose:
   stage: deploy
   image:
     name: alpine/git:2.54.0
     entrypoint: [""]
   rules:
+    # Uniquement quand le code applicatif change : la fusion d'une MR GitOps ne relance pas de proposition
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes: [app/**/*]
   before_script:
     - wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.53.6/yq_linux_amd64 && chmod +x /usr/local/bin/yq
   script:
     - yq -i '.images[0].newName = strenv(CI_REGISTRY_IMAGE) | .images[0].newTag = strenv(CI_COMMIT_SHORT_SHA)' gitops/overlays/lab/kustomization.yaml
     - git config user.name "gitops-bot" && git config user.email "gitops-bot@noreply.invalid"
-    - git commit -am "chore(gitops): bank-api $CI_COMMIT_SHORT_SHA [skip ci]"
-    - git push "https://gitops-bot:${GITOPS_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "HEAD:${CI_DEFAULT_BRANCH}"
+    - git checkout -b "gitops/$CI_COMMIT_SHORT_SHA"
+    - git commit -am "chore(gitops): bank-api $CI_COMMIT_SHORT_SHA"
+    - >
+      git push "https://gitops-bot:${GITOPS_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "HEAD:refs/heads/gitops/$CI_COMMIT_SHORT_SHA"
+      -o merge_request.create
+      -o merge_request.target="$CI_DEFAULT_BRANCH"
+      -o merge_request.remove_source_branch
+      -o merge_request.title="Déployer bank-api $CI_COMMIT_SHORT_SHA en lab"
+      -o merge_request.description="Image scannée (SCA, image, DAST) par le pipeline $CI_PIPELINE_URL"
   environment:
     name: lab
+    action: prepare

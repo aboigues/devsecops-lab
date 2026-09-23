@@ -35,11 +35,27 @@ resource "gitlab_project" "learner" {
   import_url       = var.source_repo_url
   visibility_level = "private"
 
-  # Garde-fous : on ne fusionne pas sans pipeline vert
-  only_allow_merge_if_pipeline_succeeds = true
-  container_registry_access_level       = "private"
+  # Garde-fous de fusion (tous disponibles en édition CE) : pipeline vert obligatoire, un pipeline
+  # ignoré ([skip ci]) ne compte pas comme un succès, discussions résolues, historique linéaire
+  only_allow_merge_if_pipeline_succeeds            = true
+  allow_merge_on_skipped_pipeline                  = false
+  only_allow_merge_if_all_discussions_are_resolved = true
+  merge_method                                     = "ff"
+  remove_source_branch_after_merge                 = true
+  container_registry_access_level                  = "private"
 
   depends_on = [gitlab_application_settings.this]
+}
+
+# `main` n'accepte aucun push direct, pas même d'un administrateur ni du bot GitOps :
+# tout changement arrive par merge request, fusionnée par un humain (l'apprenant, mainteneur).
+resource "gitlab_branch_protection" "main" {
+  for_each           = var.learners
+  project            = gitlab_project.learner[each.key].id
+  branch             = "main"
+  push_access_level  = "no one"
+  merge_access_level = "maintainer"
+  allow_force_push   = false
 }
 
 resource "gitlab_project_membership" "learner" {
@@ -57,13 +73,14 @@ resource "gitlab_project_deploy_token" "argocd" {
   scopes   = ["read_repository", "read_registry"]
 }
 
-# Écriture limitée au dépôt : la CI met à jour le tag d'image dans gitops/ (pull-based GitOps)
+# Le bot GitOps pousse une branche `gitops/<sha>` et ouvre une merge request ; il ne peut pas fusionner
+# (niveau developer < maintainer requis sur `main`). La promotion reste une décision humaine.
 resource "gitlab_project_access_token" "gitops" {
   for_each     = var.learners
   project      = gitlab_project.learner[each.key].id
   name         = "gitops-bot"
   scopes       = ["write_repository"]
-  access_level = "maintainer"
+  access_level = "developer"
 
   rotation_configuration = {
     expiration_days    = 30

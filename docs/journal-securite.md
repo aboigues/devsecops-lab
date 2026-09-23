@@ -26,3 +26,50 @@ Constats réels relevés par la chaîne sur ce dépôt, et leur traitement. Sert
   plutôt qu'un abaissement global du seuil. Cible en production : politique d'admission Kyverno ou
   OPA Gatekeeper restreignant les registries autorisés.
 - **Enseignement** : une exception de sécurité est une décision tracée, pas une désactivation silencieuse.
+
+## 2026-09-23 — Promotion en lab sans relecture humaine (conception du pipeline)
+
+- **Détection** : revue de conception, lors de la mise en place de la protection de `main`.
+- **Constat** : le job GitOps poussait le nouveau tag d'image directement sur `main` avec un jeton
+  `maintainer`. Tout commit applicatif était donc déployé en lab sans qu'un humain voie la promotion,
+  et le jeton du bot pouvait modifier n'importe quel fichier de `main`.
+- **Remédiation** : `main` protégée en « no one » pour le push (`gitlab_branch_protection`), le job
+  devient `gitops:propose` et ouvre une merge request ; jeton du bot abaissé à `developer` (ne peut
+  pas fusionner). Mêmes principes appliqués au `Jenkinsfile` et à `bitbucket-pipelines.yml`.
+- **Enseignement** : le GitOps ne sécurise le déploiement que si l'écriture dans le dépôt de
+  configuration est elle-même contrôlée. Un bot qui pousse sur `main` est un déploiement continu
+  sans porte.
+
+## 2026-09-23 — Dependabot sans délai de carence (sécurité de la CI, zizmor)
+
+- **Détection** : `zizmor` 1.30.1, avant le premier push de la configuration Dependabot
+  (4 alertes MEDIUM `dependabot-cooldown`).
+- **Constat** : sans délai, Dependabot propose une nouvelle version dès sa publication. Or les
+  compromissions de paquets sont en général détectées et retirées dans les jours qui suivent.
+- **Remédiation** : `cooldown: { default-days: 7 }` sur chaque écosystème. Les mises à jour de
+  sécurité ne sont pas retardées.
+- **Enseignement** : la configuration de la CI est du code, elle passe elle aussi par une gate.
+
+## 2026-09-23 — Protection de `main` et agent IA
+
+- **Décision** : ruleset GitHub sans exception (PR obligatoire, toutes les gates exigées, historique
+  linéaire, ni force-push ni suppression). 0 approbation exigée car le dépôt n'a qu'un mainteneur
+  et GitHub interdit d'approuver sa propre PR.
+- **Risque résiduel** : Claude Code utilise le jeton d'Alexandre ; GitHub ne peut pas distinguer une
+  fusion humaine d'une fusion par l'agent.
+- **Mesure compensatoire** : `.claude/settings.json` (versionné, relu via CODEOWNERS) interdit à
+  l'agent le push vers `main`, le force-push, `gh pr merge`, l'approbation de PR et la modification
+  des rulesets ; fusion automatique désactivée ; `GITHUB_TOKEN` en lecture seule, sans droit
+  d'approbation. Cible en équipe : 1 approbation minimum par un CODEOWNER.
+
+## 2026-09-23 — Première exécution réelle du DAST (ZAP, faux positif tracé)
+
+- **Détection** : job `container` de la CI GitHub, PR #1, ZAP baseline 2.17.0 contre l'API démarrée.
+- **Constat** : 66 règles passent, 1 avertissement `Non-Storable Content [10049]` sur 4 URL : les
+  réponses ne sont pas stockables en cache.
+- **Analyse** : comportement voulu (`Cache-Control: no-store` posé par `SecurityHeadersFilter`),
+  recommandé pour des données financières (OWASP ASVS V8.2.1). Faux positif dans ce contexte.
+- **Décision** : règle 10049 rétrogradée en INFO dans `.zap/baseline.conf` (justifiée, datée), et non
+  `-I` qui masquerait tous les avertissements. Appliqué aux quatre pipelines.
+- **Enseignement** : un outil DAST signale des faits, pas des vulnérabilités ; le tri se fait au regard
+  du contexte métier, et la décision est tracée.

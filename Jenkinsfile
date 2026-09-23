@@ -61,6 +61,7 @@ pipeline {
                 stage('IaC') {
                     steps {
                         sh 'docker run --rm -v "$WORKSPACE:/w" -w /w $TRIVY config --exit-code 1 --severity MEDIUM,HIGH,CRITICAL terraform/'
+                        sh 'docker run --rm -v "$WORKSPACE:/w" -w /w $TRIVY config --exit-code 1 --severity MEDIUM,HIGH,CRITICAL app/'
                     }
                 }
             }
@@ -91,7 +92,7 @@ pipeline {
                     docker run -d --name app-$BUILD_NUMBER --network dast-$BUILD_NUMBER "$IMAGE"
                     docker run --rm --network dast-$BUILD_NUMBER -v "$WORKSPACE:/zap/wrk" zaproxy/zap-stable:2.17.0 \
                       bash -c "until curl -fsS http://app-$BUILD_NUMBER:8080/actuator/health/readiness; do sleep 3; done; \
-                               zap-baseline.py -t http://app-$BUILD_NUMBER:8080/api/accounts -r zap-report.html"
+                               zap-baseline.py -t http://app-$BUILD_NUMBER:8080/api/accounts -c .zap/baseline.conf -r zap-report.html"
                 '''
             }
             post {
@@ -109,9 +110,13 @@ pipeline {
                     sh '''
                         docker run --rm -v "$WORKSPACE:/w" -w /w mikefarah/yq:4.53.6 -i \
                           ".images[0].newName = \\"${IMAGE%:*}\\" | .images[0].newTag = \\"${IMAGE##*:}\\"" gitops/overlays/lab/kustomization.yaml
+                        # Jamais de push sur main : branche dédiée + merge request fusionnée par un humain
+                        # (options de push GitLab ; sur GitHub/Bitbucket, appel API de création de PR)
+                        git checkout -b "gitops/${IMAGE##*:}"
                         git -c user.name=gitops-bot -c user.email=gitops-bot@noreply.invalid \
-                          commit -am "chore(gitops): bank-api ${IMAGE##*:} [skip ci]"
-                        git push "https://gitops-bot:${GITOPS_TOKEN}@${GIT_URL#https://}" HEAD:main
+                          commit -am "chore(gitops): bank-api ${IMAGE##*:}"
+                        git push "https://gitops-bot:${GITOPS_TOKEN}@${GIT_URL#https://}" "HEAD:refs/heads/gitops/${IMAGE##*:}" \
+                          -o merge_request.create -o merge_request.target=main -o merge_request.remove_source_branch
                     '''
                 }
             }

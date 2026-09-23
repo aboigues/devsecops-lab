@@ -1,0 +1,29 @@
+# Mises à jour proposées par PR (jamais fusionnées automatiquement : un humain relit chaque montée
+# de version, la CI rejoue toutes les gates). Regroupées pour limiter le bruit.
+# Délai de carence de 7 jours : une version fraîchement publiée (éventuellement compromise, cf. attaques
+# sur la chaîne d'approvisionnement npm/PyPI) n'est pas proposée tout de suite. Les correctifs de
+# sécurité Dependabot ne sont pas concernés par ce délai.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /app
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+    groups:
+      maven: { patterns: ["*"] }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+    groups:
+      actions: { patterns: ["*"] }
+  - package-ecosystem: docker
+    directory: /app
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+  - package-ecosystem: terraform
+    directories: [/terraform/bootstrap, /terraform/platform, /terraform/labs]
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+    groups:
+      terraform: { patterns: ["*"] }
