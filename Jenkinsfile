@@ -92,7 +92,7 @@ pipeline {
                     docker run -d --name app-$BUILD_NUMBER --network dast-$BUILD_NUMBER "$IMAGE"
                     docker run --rm --network dast-$BUILD_NUMBER -v "$WORKSPACE:/zap/wrk" zaproxy/zap-stable:2.17.0 \
                       bash -c "until curl -fsS http://app-$BUILD_NUMBER:8080/actuator/health/readiness; do sleep 3; done; \
-                               zap-baseline.py -t http://app-$BUILD_NUMBER:8080/api/accounts -r zap-report.html"
+                               zap-baseline.py -t http://app-$BUILD_NUMBER:8080/api/accounts -c .zap/baseline.conf -r zap-report.html"
                 '''
             }
             post {

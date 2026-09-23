@@ -61,3 +61,15 @@ Constats réels relevés par la chaîne sur ce dépôt, et leur traitement. Sert
   l'agent le push vers `main`, le force-push, `gh pr merge`, l'approbation de PR et la modification
   des rulesets ; fusion automatique désactivée ; `GITHUB_TOKEN` en lecture seule, sans droit
   d'approbation. Cible en équipe : 1 approbation minimum par un CODEOWNER.
+
+## 2026-09-23 — Première exécution réelle du DAST (ZAP, faux positif tracé)
+
+- **Détection** : job `container` de la CI GitHub, PR #1, ZAP baseline 2.17.0 contre l'API démarrée.
+- **Constat** : 66 règles passent, 1 avertissement `Non-Storable Content [10049]` sur 4 URL : les
+  réponses ne sont pas stockables en cache.
+- **Analyse** : comportement voulu (`Cache-Control: no-store` posé par `SecurityHeadersFilter`),
+  recommandé pour des données financières (OWASP ASVS V8.2.1). Faux positif dans ce contexte.
+- **Décision** : règle 10049 rétrogradée en INFO dans `.zap/baseline.conf` (justifiée, datée), et non
+  `-I` qui masquerait tous les avertissements. Appliqué aux quatre pipelines.
+- **Enseignement** : un outil DAST signale des faits, pas des vulnérabilités ; le tri se fait au regard
+  du contexte métier, et la décision est tracée.

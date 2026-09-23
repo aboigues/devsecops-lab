@@ -122,10 +122,10 @@ dast:
     - name: $IMAGE
       alias: bank-api
   script:
-    - mkdir -p /zap/wrk
+    - mkdir -p /zap/wrk && cp .zap/baseline.conf /zap/wrk/
     - until curl -fsS http://bank-api:8080/actuator/health/readiness; do sleep 3; done
-    # Échec sur toute alerte de niveau WARN ou FAIL (pas d'option -I)
-    - zap-baseline.py -t http://bank-api:8080/api/accounts -r zap-report.html -J zap-report.json
+    # Échec sur toute alerte de niveau WARN ou FAIL (pas d'option -I) ; exceptions justifiées dans .zap/
+    - zap-baseline.py -t http://bank-api:8080/api/accounts -c baseline.conf -r zap-report.html -J zap-report.json
   after_script:
     - cp /zap/wrk/zap-report.* "$CI_PROJECT_DIR/" || true
   artifacts:

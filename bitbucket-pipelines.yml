@@ -49,7 +49,7 @@ definitions:
           - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.74.0 image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 "$IMAGE"
           - docker run -d --name app -p 8080:8080 "$IMAGE"
           - until curl -fsS http://localhost:8080/actuator/health/readiness; do sleep 3; done
-          - docker run --rm --network host -v "$PWD:/zap/wrk" zaproxy/zap-stable:2.17.0 zap-baseline.py -t http://localhost:8080/api/accounts -r zap-report.html
+          - docker run --rm --network host -v "$PWD:/zap/wrk" zaproxy/zap-stable:2.17.0 zap-baseline.py -t http://localhost:8080/api/accounts -c .zap/baseline.conf -r zap-report.html
           - echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USER" --password-stdin "$REGISTRY"
           - docker push "$IMAGE"
         artifacts:

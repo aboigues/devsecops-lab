@@ -192,10 +192,27 @@ reconstruction sur l'image de base corrigée (d'où Dependabot sur l'écosystèm
 ## Gate 8 — DAST : l'application attaquée en boîte noire
 
 Dans la CI GitHub, l'API démarre réellement (non-root, système de fichiers en lecture seule, toutes
-capacités retirées) et ZAP baseline l'analyse. **Exemple réel** : sans le filtre
-`SecurityHeadersFilter`, ZAP lève des alertes WARN (`X-Content-Type-Options` absent, pas de
-`Content-Security-Policy`, contenu mis en cache) et le job échoue. Ce filtre a été écrit pour
-satisfaire cette gate ; le rapport HTML est publié en artefact `dast-report` à chaque exécution.
+capacités retirées) et ZAP baseline l'analyse. Le filtre `SecurityHeadersFilter` pose les en-têtes
+attendus (`X-Content-Type-Options`, `Content-Security-Policy`, `Cache-Control: no-store`...).
+
+**Cas réel sur ce dépôt** : la toute première exécution de ZAP (PR #1) a échoué. Sortie du job
+`container` (ZAP 2.17.0) :
+
+```
+WARN-NEW: Non-Storable Content [10049] x 4
+	http://localhost:8080/api/accounts (200 OK)
+	...
+FAIL-NEW: 0	FAIL-INPROG: 0	WARN-NEW: 1	WARN-INPROG: 0	INFO: 0	IGNORE: 0	PASS: 66
+Process completed with exit code 2.
+```
+
+66 règles passent ; ZAP avertit que les réponses **ne peuvent pas être mises en cache**. Or c'est
+exactement ce que l'on veut pour des soldes bancaires (OWASP ASVS V8.2.1) : un faux positif *dans ce
+contexte*. Plutôt que d'ajouter `-I` (qui ignorerait tous les avertissements, y compris les vrais),
+la règle 10049 seule est rétrogradée en INFO dans `.zap/baseline.conf`, avec sa justification ; elle
+reste visible dans le rapport. C'est le travail de tri attendu d'un apprenant au lab 10 : lire
+l'alerte, décider vrai ou faux positif, tracer la décision. Le rapport HTML est publié en artefact
+`dast-report` à chaque exécution.
 
 ## Gate 9 — La CI est elle-même une cible
 
