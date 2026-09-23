@@ -54,6 +54,7 @@ moteur CI principal, cible Kubernetes ou OpenShift, profondeur Terraform.
 
 ## Supports
 
+Étude de cas fil rouge des trois jours : `docs/scenario-entreprise.md` (Néobanque Exemple).
 Cas concrets de chaque gate (sorties réelles des outils, scénarios à rejouer) : `docs/gates-securite.md`.
 Cas réels du dépôt : `docs/journal-securite.md`.
 
