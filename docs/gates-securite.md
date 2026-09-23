@@ -148,6 +148,13 @@ remédiation dans [`journal-securite.md`](journal-securite.md)). « Dernière ve
 Le SBOM CycloneDX produit au même moment (artefact `app-reports`) permet, le jour où une nouvelle CVE
 sort, de répondre en une recherche à la question « sommes-nous concernés, et où ? ».
 
+**Cas réel : un robot aussi peut régresser.** Quelques minutes après l'activation de Dependabot, sa
+PR #2 proposait de « mettre à jour » l'image de build `maven:3.9.16-eclipse-temurin-25` vers
+`maven:3-eclipse-temurin-24` : JDK plus ancien, tag flottant. Le job `container` l'a bloquée
+(`release version 25 not supported`) ; elle n'a pas été fusionnée et la configuration Dependabot a été
+corrigée (voir le journal). Si la fusion automatique des PR Dependabot avait été activée, comme le
+proposent beaucoup de tutoriels, seule cette gate aurait fait barrage.
+
 ## Gate 5 — Revue des dépendances d'une PR
 
 `dependency-review-action` compare les dépendances de la PR à celles de `main` et refuse l'ajout

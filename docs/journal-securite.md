@@ -73,3 +73,20 @@ Constats réels relevés par la chaîne sur ce dépôt, et leur traitement. Sert
   `-I` qui masquerait tous les avertissements. Appliqué aux quatre pipelines.
 - **Enseignement** : un outil DAST signale des faits, pas des vulnérabilités ; le tri se fait au regard
   du contexte métier, et la décision est tracée.
+
+## 2026-09-23 — Mise à jour automatique régressive bloquée (Dependabot, PR #2)
+
+- **Détection** : job `container` de la CI, sur la PR #2 ouverte par Dependabot quelques minutes après
+  l'activation de la configuration.
+- **Constat** : « montée de version » de l'image de build `maven:3.9.16-eclipse-temurin-25` vers
+  `maven:3-eclipse-temurin-24`. En réalité une régression : JDK 25 (LTS) remplacé par JDK 24 (hors LTS,
+  fin de support), et tag flottant `3` au lieu d'une version exacte. La compilation échoue :
+  `release version 25 not supported`. Dependabot interprète mal les tags composés
+  `<maven>-eclipse-temurin-<jdk>`.
+- **Remédiation** : images de base épinglées par tag **et** digest ; Dependabot limité aux mises à jour
+  de digest pour `maven` et `eclipse-temurin` (même version reconstruite avec les correctifs OS). Les
+  changements de version se font à la main après vérification de la dernière version stable
+  (3.9.16 / JDK 25 le 2026-09-23). PR #2 non fusionnée.
+- **Enseignement** : une mise à jour automatique n'est pas une mise à jour sûre. Sans gate bloquante
+  et sans fusion humaine, cette PR aurait été fusionnée automatiquement ; ici la CI l'a arrêtée et un
+  humain a tranché.
