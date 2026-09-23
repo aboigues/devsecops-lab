@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   app:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
@@ -24,7 +24,7 @@ jobs:
         working-directory: app
 
   iac:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: hashicorp/setup-terraform@v4
@@ -54,7 +54,7 @@ jobs:
           docker run --rm -v "$PWD:/w" -w /w aquasec/trivy:0.74.0 config --exit-code 1 --severity MEDIUM,HIGH,CRITICAL rendered/
 
   secrets:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:

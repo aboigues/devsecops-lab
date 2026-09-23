@@ -16,3 +16,13 @@ Constats réels relevés par la chaîne sur ce dépôt, et leur traitement. Sert
 - **Vérification** : 13 tests verts, nouveau scan à 0 vulnérabilité HIGH/CRITICAL.
 - **Enseignement** : « dernière version du framework » ne veut pas dire « sans vulnérabilité connue ».
   Le scan de dépendances doit tourner à chaque build, pas seulement lors des montées de version.
+
+## 2026-09-23 — Registry hors liste de confiance (IaC, KSV-0125)
+
+- **Détection** : `trivy config` sur les overlays Kustomize rendus, dans la CI GitHub (échec bloquant du job `iac`).
+- **Constat** : l'image provient d'un registry absent de la liste de confiance par défaut de Trivy.
+- **Analyse** : le registry légitime est celui du GitLab du lab, dont l'hôte change à chaque déploiement.
+- **Décision** : exception documentée dans `.trivyignore` (justification, date, mesure compensatoire),
+  plutôt qu'un abaissement global du seuil. Cible en production : politique d'admission Kyverno ou
+  OPA Gatekeeper restreignant les registries autorisés.
+- **Enseignement** : une exception de sécurité est une décision tracée, pas une désactivation silencieuse.

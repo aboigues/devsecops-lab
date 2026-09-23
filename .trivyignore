@@ -1,0 +1,9 @@
+# Exceptions de sécurité : chacune est justifiée, datée et revue à chaque session.
+
+# KSV-0125 (image issue d'un registry hors liste de confiance Trivy) — 2026-09-23
+# Le registry légitime est celui du GitLab auto-hébergé du lab, dont le nom d'hôte change à chaque
+# déploiement (registry.<ip>.sslip.io) ; il ne peut donc pas figurer dans une liste statique.
+# Mesure compensatoire : l'image est construite, scannée et poussée par le pipeline du projet,
+# et tirée avec un deploy token en lecture seule. En production, remplacer cette exception par une
+# politique d'admission (Kyverno / OPA Gatekeeper) limitant les registries autorisés.
+KSV-0125
