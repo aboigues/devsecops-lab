@@ -11,3 +11,6 @@ rendered/
 .trivycache/
 sbom.cdx.json
 zap-report.*
+
+# Contexte Claude Code local
+CLAUDE.local.md
