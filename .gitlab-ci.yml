@@ -1,0 +1,151 @@
+# Pipeline DevSecOps de référence : chaque contrôle de sécurité est un job bloquant,
+# placé le plus tôt possible (shift-left). Ordre : code -> dépendances -> IaC -> image -> exécution.
+#
+#   test ──> sast / secrets / sca / iac ──> image ──> scan image ──> dast ──> gitops:update ──> Argo CD
+#
+# Toutes les images d'outils sont épinglées : un pipeline de sécurité ne doit pas changer sans revue.
+
+stages: [test, analyse, package, verify, deploy]
+
+variables:
+  IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+  MAVEN_OPTS: -Dmaven.repo.local=$CI_PROJECT_DIR/.m2
+  TRIVY_IMAGE: aquasec/trivy:0.74.0
+  TRIVY_NO_PROGRESS: "true"
+  TRIVY_CACHE_DIR: .trivycache
+  # Seuil de blocage : vulnérabilités HIGH/CRITICAL ayant un correctif disponible
+  TRIVY_SEVERITY: HIGH,CRITICAL
+  TRIVY_IGNORE_UNFIXED: "true"
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Analyseurs GitLab (disponibles en édition CE : SAST Semgrep et détection de secrets).
+# En CE les rapports sont téléchargeables en artefact ; la vue consolidée est une fonction Ultimate.
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+
+sast:
+  stage: analyse
+
+secret_detection:
+  stage: analyse
+  variables:
+    # Historique complet sur MR : un secret supprimé dans un commit ultérieur reste compromis
+    SECRET_DETECTION_HISTORIC_SCAN: "true"
+
+.trivy:
+  image:
+    name: $TRIVY_IMAGE
+    entrypoint: [""]
+  cache:
+    key: trivy
+    paths: [.trivycache/]
+
+# --- 1. Tests : pyramide unitaires / web / intégration + couverture minimale --------------
+unit-and-integration:
+  stage: test
+  image: maven:3.9.16-eclipse-temurin-25
+  cache:
+    key: maven
+    paths: [.m2/]
+  script:
+    - cd app && mvn -B verify
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - app/target/surefire-reports/TEST-*.xml
+        - app/target/failsafe-reports/TEST-*.xml
+      coverage_report:
+        coverage_format: jacoco
+        path: app/target/site/jacoco/jacoco.xml
+
+# --- 2. Analyse des dépendances (SCA) et nomenclature logicielle (SBOM) -------------------
+dependencies:
+  extends: .trivy
+  stage: analyse
+  script:
+    - trivy fs --scanners vuln --exit-code 1 app/
+    - trivy fs --format cyclonedx --output sbom.cdx.json app/
+  artifacts:
+    when: always
+    paths: [sbom.cdx.json]
+    reports:
+      cyclonedx: sbom.cdx.json
+
+# --- 3. Infrastructure as Code : Terraform et manifestes rendus ---------------------------
+iac:
+  extends: .trivy
+  stage: analyse
+  before_script:
+    - wget -qO- https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.8.1/kustomize_v5.8.1_linux_amd64.tar.gz | tar xz -C /usr/local/bin
+  script:
+    - trivy config --exit-code 1 --severity MEDIUM,HIGH,CRITICAL terraform/
+    # On scanne ce qui sera réellement appliqué (overlays rendus), pas la base incomplète
+    - mkdir -p rendered
+    - kustomize build gitops/overlays/lab > rendered/lab.yaml
+    - kustomize build gitops/overlays/openshift > rendered/openshift.yaml
+    - trivy config --exit-code 1 --severity MEDIUM,HIGH,CRITICAL rendered/
+
+# --- 4. Construction de l'image, sans privilège (Buildah rootless, pas de Docker-in-Docker)
+image:
+  stage: package
+  image: quay.io/buildah/stable:v1.43.4
+  variables:
+    STORAGE_DRIVER: vfs
+    BUILDAH_ISOLATION: chroot
+  script:
+    - buildah login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - buildah build --layers -t "$IMAGE" app/
+    - buildah push "$IMAGE"
+
+# --- 5. Scan de l'image construite (OS + JRE + dépendances embarquées) --------------------
+container-scan:
+  extends: .trivy
+  stage: verify
+  variables:
+    TRIVY_USERNAME: $CI_REGISTRY_USER
+    TRIVY_PASSWORD: $CI_REGISTRY_PASSWORD
+  script:
+    - trivy image --exit-code 1 "$IMAGE"
+
+# --- 6. DAST : l'application tourne réellement, ZAP l'attaque en boîte noire --------------
+dast:
+  stage: verify
+  image: zaproxy/zap-stable:2.17.0
+  services:
+    - name: $IMAGE
+      alias: bank-api
+  script:
+    - mkdir -p /zap/wrk
+    - until curl -fsS http://bank-api:8080/actuator/health/readiness; do sleep 3; done
+    # Échec sur toute alerte de niveau WARN ou FAIL (pas d'option -I)
+    - zap-baseline.py -t http://bank-api:8080/api/accounts -r zap-report.html -J zap-report.json
+  after_script:
+    - cp /zap/wrk/zap-report.* "$CI_PROJECT_DIR/" || true
+  artifacts:
+    when: always
+    paths: [zap-report.html, zap-report.json]
+
+# --- 7. GitOps : la CI ne déploie jamais, elle met à jour l'état désiré dans Git ---------
+# Argo CD (pull) détecte le commit et synchronise le cluster. Aucun identifiant cluster dans la CI.
+gitops:update:
+  stage: deploy
+  image:
+    name: alpine/git:2.54.0
+    entrypoint: [""]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  before_script:
+    - wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.53.6/yq_linux_amd64 && chmod +x /usr/local/bin/yq
+  script:
+    - yq -i '.images[0].newName = strenv(CI_REGISTRY_IMAGE) | .images[0].newTag = strenv(CI_COMMIT_SHORT_SHA)' gitops/overlays/lab/kustomization.yaml
+    - git config user.name "gitops-bot" && git config user.email "gitops-bot@noreply.invalid"
+    - git commit -am "chore(gitops): bank-api $CI_COMMIT_SHORT_SHA [skip ci]"
+    - git push "https://gitops-bot:${GITOPS_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "HEAD:${CI_DEFAULT_BRANCH}"
+  environment:
+    name: lab

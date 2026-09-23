@@ -1,0 +1,11 @@
+# Overlay OpenShift : même base, exposition via Route au lieu d'un Ingress.
+# L'image est construite par le pipeline et poussée vers un registry lisible par le cluster.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - route.yaml
+images:
+  - name: bank-api
+    newName: quay.io/example/bank-api
+    newTag: initial

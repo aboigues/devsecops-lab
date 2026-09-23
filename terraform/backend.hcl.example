@@ -1,0 +1,3 @@
+bucket     = "devsecops-lab-tfstate-xxxx"
+access_key = "SCW..."
+secret_key = "..."

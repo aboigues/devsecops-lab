@@ -1,0 +1,13 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+backend.hcl
+crash.log
+# Rendus et rapports CI
+rendered/
+.trivycache/
+sbom.cdx.json
+zap-report.*

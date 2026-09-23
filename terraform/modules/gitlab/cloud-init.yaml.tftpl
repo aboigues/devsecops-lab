@@ -1,0 +1,42 @@
+#cloud-config
+package_update: true
+packages: [curl, ca-certificates, openssh-server]
+
+write_files:
+  - path: /etc/gitlab/gitlab.rb
+    permissions: "0600"
+    content: |
+      external_url 'https://${host}'
+      registry_external_url 'https://${registry_host}'
+      letsencrypt['enable'] = true
+      letsencrypt['contact_emails'] = ['${letsencrypt_email}']
+      gitlab_rails['initial_root_password'] = '${root_password}'
+      # Empreinte mémoire réduite pour une VM 8-12 Go
+      puma['worker_processes'] = 2
+      sidekiq['concurrency'] = 10
+      prometheus_monitoring['enable'] = false
+  - path: /root/bootstrap-tokens.rb
+    permissions: "0600"
+    content: |
+      root = User.find_by_username('root')
+      {
+        'terraform'        => [['api'], '${terraform_token}'],
+        'runner-bootstrap' => [['create_runner'], '${runner_token}'],
+      }.each do |name, (scopes, value)|
+        next if root.personal_access_tokens.active.exists?(name: name)
+        t = root.personal_access_tokens.create!(name: name, scopes: scopes, expires_at: 30.days.from_now)
+        t.set_token(value)
+        t.save!
+      end
+      # Inscription publique fermée dès le premier démarrage (comptes créés par Terraform, étape labs)
+      Gitlab::CurrentSettings.update!(signup_enabled: false)
+
+runcmd:
+  - curl -fsSL https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.deb.sh | bash
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y gitlab-ce=${gitlab_version}
+  - apt-mark hold gitlab-ce
+  - gitlab-ctl reconfigure
+  - gitlab-rails runner /root/bootstrap-tokens.rb
+  # Les secrets n'ont plus à rester sur disque une fois consommés
+  - shred -u /root/bootstrap-tokens.rb
+  - sed -i "/initial_root_password/d" /etc/gitlab/gitlab.rb

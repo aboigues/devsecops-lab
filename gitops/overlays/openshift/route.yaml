@@ -1,0 +1,14 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: bank-api
+spec:
+  to:
+    kind: Service
+    name: bank-api
+  port:
+    targetPort: http
+  # TLS terminé par le routeur OpenShift, HTTP redirigé vers HTTPS
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

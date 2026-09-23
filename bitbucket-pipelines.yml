@@ -1,0 +1,85 @@
+# Équivalent Bitbucket Pipelines du pipeline GitLab CI : mêmes contrôles, mêmes seuils.
+# Variables de dépôt sécurisées attendues : REGISTRY, REGISTRY_USER, REGISTRY_PASSWORD, GITOPS_TOKEN.
+image: atlassian/default-image:4
+
+definitions:
+  caches:
+    trivy: .trivycache
+  steps:
+    - step: &tests
+        name: Tests (unitaires, web, intégration) + couverture
+        image: maven:3.9.16-eclipse-temurin-25
+        caches: [maven]
+        script:
+          - cd app && mvn -B verify
+        artifacts:
+          - app/target/site/jacoco/**
+    - step: &secrets
+        name: Détection de secrets (gitleaks)
+        image: zricethezav/gitleaks:v8.30.1
+        script:
+          - gitleaks git . --redact --exit-code 1
+    - step: &sast
+        name: SAST (Semgrep)
+        image: semgrep/semgrep:1.177.0
+        script:
+          - semgrep scan --config p/java --error app/
+    - step: &sca
+        name: SCA + SBOM (Trivy)
+        image: aquasec/trivy:0.74.0
+        caches: [trivy]
+        script:
+          - trivy fs --cache-dir .trivycache --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 app/
+          - trivy fs --cache-dir .trivycache --format cyclonedx --output sbom.cdx.json app/
+        artifacts:
+          - sbom.cdx.json
+    - step: &iac
+        name: Scan IaC (Trivy config)
+        image: aquasec/trivy:0.74.0
+        script:
+          - trivy config --severity MEDIUM,HIGH,CRITICAL --exit-code 1 terraform/
+    - step: &image
+        name: Image + scan + DAST
+        services: [docker]
+        caches: [docker]
+        script:
+          - export IMAGE="$REGISTRY/devsecops-lab/bank-api:${BITBUCKET_COMMIT:0:8}"
+          - docker build -t "$IMAGE" app/
+          - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.74.0 image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 "$IMAGE"
+          - docker run -d --name app -p 8080:8080 "$IMAGE"
+          - until curl -fsS http://localhost:8080/actuator/health/readiness; do sleep 3; done
+          - docker run --rm --network host -v "$PWD:/zap/wrk" zaproxy/zap-stable:2.17.0 zap-baseline.py -t http://localhost:8080/api/accounts -r zap-report.html
+          - echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USER" --password-stdin "$REGISTRY"
+          - docker push "$IMAGE"
+        artifacts:
+          - zap-report.html
+
+pipelines:
+  pull-requests:
+    '**':
+      - step: *tests
+      - parallel:
+          - step: *secrets
+          - step: *sast
+          - step: *sca
+          - step: *iac
+      - step: *image
+  branches:
+    main:
+      - step: *tests
+      - parallel:
+          - step: *secrets
+          - step: *sast
+          - step: *sca
+          - step: *iac
+      - step: *image
+      - step:
+          name: GitOps (mise à jour de l'état désiré)
+          deployment: lab
+          image: alpine/git:2.54.0
+          script:
+            - wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.53.6/yq_linux_amd64 && chmod +x /usr/local/bin/yq
+            - export TAG="${BITBUCKET_COMMIT:0:8}"
+            - yq -i '.images[0].newName = strenv(REGISTRY) + "/devsecops-lab/bank-api" | .images[0].newTag = strenv(TAG)' gitops/overlays/lab/kustomization.yaml
+            - git commit -am "chore(gitops) bank-api $TAG [skip ci]"
+            - git push "https://x-token-auth:${GITOPS_TOKEN}@bitbucket.org/${BITBUCKET_REPO_FULL_NAME}.git" HEAD:main

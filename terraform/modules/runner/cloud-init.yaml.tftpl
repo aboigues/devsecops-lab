@@ -1,0 +1,33 @@
+#cloud-config
+package_update: true
+packages: [curl, jq, docker.io]
+
+write_files:
+  - path: /root/register-runner.sh
+    permissions: "0700"
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      # GitLab met plusieurs minutes à démarrer (reconfigure + certificat) : attente active
+      until curl -fsS -o /dev/null "${gitlab_url}/users/sign_in"; do sleep 20; done
+      # Le jeton create_runner est créé juste après le reconfigure : on réessaie jusqu'à ce qu'il existe
+      until RUNNER_TOKEN=$(curl -fsS -X POST "${gitlab_url}/api/v4/user/runners" \
+          -H "PRIVATE-TOKEN: ${runner_token}" \
+          -d runner_type=instance_type -d "description=$(hostname)" \
+          -d run_untagged=true | jq -er .token); do sleep 20; done
+      gitlab-runner register --non-interactive \
+        --url "${gitlab_url}" \
+        --token "$RUNNER_TOKEN" \
+        --executor docker \
+        --docker-image alpine:3 \
+        --docker-privileged=false \
+        --docker-volumes /cache
+      sed -i 's/^concurrent = .*/concurrent = ${concurrency}/' /etc/gitlab-runner/config.toml
+      systemctl restart gitlab-runner
+
+runcmd:
+  - curl -fsSL https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh | bash
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y gitlab-runner=${runner_version} gitlab-runner-helper-images=${runner_version}
+  - apt-mark hold gitlab-runner gitlab-runner-helper-images
+  - /root/register-runner.sh
+  - shred -u /root/register-runner.sh

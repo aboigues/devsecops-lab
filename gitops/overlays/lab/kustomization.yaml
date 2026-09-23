@@ -1,0 +1,18 @@
+# Overlay Kapsule (lab Scaleway) : image du registry GitLab de l'apprenant.
+# Le bloc images est réécrit par le job CI « gitops:update » à chaque commit sur main.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  - target:
+      kind: Deployment
+      name: bank-api
+    patch: |-
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value: [{name: gitlab-registry}]
+images:
+  - name: bank-api
+    newName: registry.example.invalid/bank-api
+    newTag: initial
