@@ -21,6 +21,15 @@ updates:
     directory: /app
     schedule: { interval: weekly }
     cooldown: { default-days: 7 }
+    # Dependabot interprète mal les tags composés (« 3.9.16-eclipse-temurin-25 ») : il a proposé
+    # « 3-eclipse-temurin-24 », soit un JDK plus ancien et un tag flottant (journal, 2026-09-23).
+    # On ne garde que les mises à jour de digest ; tout changement de tag se fait à la main,
+    # après vérification de la dernière version stable.
+    ignore:
+      - dependency-name: maven
+        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+      - dependency-name: eclipse-temurin
+        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
   - package-ecosystem: terraform
     directories: [/terraform/bootstrap, /terraform/platform, /terraform/labs]
     schedule: { interval: weekly }
