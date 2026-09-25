@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Hook git pre-commit : refuse le commit si les modifications indexées contiennent un secret.
+# Installation : cp pre-commit <dépôt>/.git/hooks/pre-commit && chmod +x <dépôt>/.git/hooks/pre-commit
+
+# TODO 4 : lancer gitleaks sur les SEULES modifications indexées (mode pre-commit) ;
+#          code de sortie non nul si un secret est trouvé, secrets masqués dans la sortie.
+exit 0

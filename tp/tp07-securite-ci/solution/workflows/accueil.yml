@@ -1,0 +1,34 @@
+# Workflow d'accueil des contributeurs, sécurisé.
+name: accueil
+
+# pull_request : exécuté dans le contexte de la PR, sans secrets ni jeton en écriture pour un fork.
+on:
+  pull_request:
+    types: [opened]
+
+# Moindre privilège : rien par défaut, lecture seule pour le job.
+permissions: {}
+
+# Une seule exécution par PR : une rafale d'événements ne monopolise pas les runners.
+concurrency:
+  group: accueil-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  accueil:
+    name: Remercier le contributeur
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      # Épinglé par SHA de commit (immuable) ; identifiants git non conservés après le checkout.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Le titre transite par une variable d'environnement : le shell le traite comme une donnée,
+      # jamais comme du code.
+      - name: Remercier
+        env:
+          TITRE: ${{ github.event.pull_request.title }}
+        run: echo "Merci pour la PR ${TITRE}"

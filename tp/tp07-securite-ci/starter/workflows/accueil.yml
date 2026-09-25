@@ -1,0 +1,29 @@
+# Workflow d'accueil des contributeurs, écrit en toute bonne foi.
+# Il fonctionne : chaque nouvelle PR reçoit un message de remerciement dans le journal du job.
+# Il est aussi exploitable par n'importe qui sur Internet. À vous de le sécuriser.
+name: accueil
+
+# TODO 1 : pull_request_target s'exécute avec les secrets et un jeton en écriture, même pour une PR
+#          venant d'un fork inconnu. Un simple message n'en a pas besoin : utiliser pull_request.
+on:
+  pull_request_target:
+    types: [opened]
+
+# TODO 2 : moindre privilège. Aucune permission au niveau du workflow ; au niveau du job, seulement
+#          la lecture du contenu (contents: read).
+permissions: write-all
+
+jobs:
+  accueil:
+    runs-on: ubuntu-latest
+    steps:
+      # TODO 3 : épingler l'action par SHA de commit complet (un tag peut être déplacé par un
+      #          attaquant), avec la version en commentaire ; ne pas conserver les identifiants git
+      #          après le checkout (persist-credentials: false).
+      - uses: actions/checkout@v4
+
+      # TODO 4 : injection de script. Le titre de la PR est choisi par l'attaquant et inséré TEL QUEL
+      #          dans le script shell. Le passer par une variable d'environnement (env:) et utiliser
+      #          la variable dans le script.
+      - name: Remercier
+        run: echo "Merci pour la PR ${{ github.event.pull_request.title }}"

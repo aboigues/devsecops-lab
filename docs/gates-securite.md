@@ -296,12 +296,19 @@ datée, assortie d'une mesure compensatoire et consignée dans `docs/journal-sec
 
 ## Rejouer les exemples en formation
 
-| Exemple | Lab du programme | Durée |
-|---|---|---|
-| Push direct refusé, MR obligatoire | Lab 2 (premier pipeline) | 10 min |
-| Injection SQL, puis `PreparedStatement` | Lab 3 | 20 min |
-| Clé AWS commitée puis retirée, trouvée dans l'historique | Lab 3 | 20 min |
-| Ajout de log4j 2.14.1, lecture du SBOM | Lab 4 | 20 min |
-| Pod privilégié refusé par le scan puis par l'admission | Lab 9 | 20 min |
-| Workflow vulnérable à l'injection de titre de PR | Démonstration jour 2 | 15 min |
-| Régression non détectée par les outils, bloquée à la relecture de la MR GitOps | Lab 8 | 20 min |
+Chaque exemple réalisable en local a son travail pratique, au format `starter/` à compléter,
+`solution/` et `verify.sh` : voir [`tp/README.md`](../tp/README.md).
+
+| Exemple | Lab du programme | Travail pratique | Durée |
+|---|---|---|---|
+| Push direct refusé, MR obligatoire | Lab 2 (premier pipeline) | Sur la plateforme | 10 min |
+| Contrôle de solde supprimé, tests de mutation | Lab 1 | [TP01](../tp/tp01-tests-couverture/) | 1 h 30 |
+| Clé AWS commitée puis retirée, trouvée dans l'historique | Lab 3 | [TP02](../tp/tp02-secrets/) | 1 h |
+| Injection SQL, puis `PreparedStatement` | Lab 3 | [TP03](../tp/tp03-sast/) | 1 h |
+| Ajout de log4j 2.14.1, lecture du SBOM | Lab 4 | [TP04](../tp/tp04-sca-sbom/) | 1 h 30 |
+| Dockerfile root sur image `latest` | Lab 5 | [TP05](../tp/tp05-image-durcie/) | 1 h 30 |
+| Module Terraform ouvert que le scanner ne voit pas | Lab 6 | [TP06](../tp/tp06-iac-terraform/) | 2 h |
+| Workflow vulnérable à l'injection de titre de PR | Démonstration jour 2 | [TP07](../tp/tp07-securite-ci/) | 45 min |
+| Pod privilégié refusé par le scan puis par l'admission | Lab 9 | [TP08](../tp/tp08-kubernetes-psa/) | 1 h 30 |
+| En-têtes manquants, faux positif 10049 trié | Lab 10 | [TP09](../tp/tp09-dast-zap/) | 1 h |
+| Régression non détectée par les outils, bloquée à la relecture de la MR GitOps | Lab 8 | Sur la plateforme | 20 min |

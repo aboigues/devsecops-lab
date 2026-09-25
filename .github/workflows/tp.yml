@@ -1,0 +1,65 @@
+# Travaux pratiques (tp/) : chaque TP est rejoué sur sa solution de référence, qui DOIT passer, et
+# sur son starter, qui DOIT échouer (sinon le TP est déjà résolu et n'apprend rien).
+# Mêmes principes que ci.yml : actions épinglées par SHA, jeton en lecture seule, outils installés
+# à des versions épinglées et vérifiés par empreinte (tp/scripts/installer-outils.sh).
+name: tp
+
+on:
+  push:
+    branches: [main]
+    paths: ["tp/**", ".github/workflows/tp.yml"]
+  pull_request:
+    paths: ["tp/**", ".github/workflows/tp.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tp-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tp:
+    name: tp (${{ matrix.tp }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        tp:
+          - tp01-tests-couverture
+          - tp02-secrets
+          - tp03-sast
+          - tp04-sca-sbom
+          - tp05-image-durcie
+          - tp06-iac-terraform
+          - tp07-securite-ci
+          - tp08-kubernetes-psa
+          - tp09-dast-zap
+    env:
+      TP: ${{ matrix.tp }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        if: matrix.tp == 'tp06-iac-terraform'
+        with:
+          terraform_version: 1.16.4
+          terraform_wrapper: false
+      - name: Outils de sécurité (versions et empreintes épinglées)
+        run: |
+          TP_BIN="$HOME/.local/bin" tp/scripts/installer-outils.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Solution de référence (doit passer)
+        run: tp/"$TP"/verify.sh solution
+      - name: Starter (doit échouer)
+        run: |
+          if tp/"$TP"/verify.sh starter; then
+            echo "::error::Le starter de $TP passe déjà la validation : le TP n'a plus rien à faire faire."
+            exit 1
+          fi

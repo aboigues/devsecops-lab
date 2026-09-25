@@ -1,0 +1,6 @@
+# KSV-0125 (image issue d'un registre hors de la liste de confiance de Trivy) - 2026-09-25
+# ghcr.io/neobanque-exemple est le registre de l'équipe ; la liste de confiance de Trivy est générique
+# et ne peut pas le connaître. Mesure compensatoire : l'image y est poussée uniquement par le pipeline,
+# après scan. À remplacer par une politique d'admission (Kyverno, OPA Gatekeeper) qui n'autorise que
+# ce registre dans le cluster.
+KSV-0125

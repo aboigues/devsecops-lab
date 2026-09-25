@@ -8,6 +8,10 @@ pipeline de sécurité.
 Conçue et maintenue par Alexandre BOIGUES (Telemach Learning, organisme de formation certifié Qualiopi)
 pour animer des formations DevSecOps sur une chaîne d'outils réelle, puis la détruire en fin de session.
 
+**Pour apprendre** : [9 travaux pratiques progressifs](tp/README.md), en local et sans compte cloud,
+au format `starter/` à compléter, `solution/`, `verify.sh` (tests et couverture, secrets, SAST, SCA et
+SBOM, image durcie, Terraform, sécurité de la CI, Kubernetes, DAST). Chacun est rejoué par la CI.
+
 **Par où commencer ?** [Une semaine chez Néobanque Exemple](docs/scenario-entreprise.md) : une banque
 fictive, cinq journées, et des incidents réellement survenus sur ce dépôt (régression proposée par
 Dependabot, CVE critiques sur Tomcat, faux positif DAST, promotion sans relecture, API sans
@@ -123,8 +127,9 @@ pousser sur `main` et de fusionner (`.claude/settings.json`). Vulnérabilité : 
 | `gitops/` | Manifestes Kustomize durcis ; overlays `lab` (Kapsule) et `openshift` (Route) |
 | `.gitlab-ci.yml` | Pipeline de référence |
 | `Jenkinsfile`, `bitbucket-pipelines.yml` | Mêmes contrôles sur Jenkins et Bitbucket |
+| `tp/` | Travaux pratiques : 9 TP (`starter/`, `solution/`, `verify.sh`), outils installés à versions épinglées |
 | `docs/` | Étude de cas Néobanque Exemple, gates de sécurité avec exemples, journal de sécurité, comparatif CI, OpenShift, XL Deploy/Release, programme de formation |
-| `.github/` | CI (gates), CodeQL, Dependabot, CODEOWNERS |
+| `.github/` | CI (gates), rejeu des TP, CodeQL, Dependabot, CODEOWNERS |
 
 ## Déployer une session
 

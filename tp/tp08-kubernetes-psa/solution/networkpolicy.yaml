@@ -1,0 +1,29 @@
+# 1. Tout est interdit par défaut dans le namespace, en entrée comme en sortie.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tout-refuser
+  namespace: soldes
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+# 2. Seul le port HTTP du service « soldes » est joignable, depuis le namespace de l'ingress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: soldes-http-depuis-ingress
+  namespace: soldes
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: soldes
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
