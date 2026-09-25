@@ -1,0 +1,160 @@
+# Scan hebdomadaire des vulnérabilités des images de conteneurs (Trivy).
+#
+# Pourquoi, alors que la CI scanne déjà l'image à chaque PR : une image ne change pas, mais la base de
+# vulnérabilités, si. Une image verte lundi peut porter une CVE critique publiée mardi, sans aucun
+# commit. Ce workflow rejoue le constat chaque semaine, sur tout ce que le dépôt construit, déploie
+# et utilise, et publie le détail dans l'onglet Security.
+#
+# Trois familles (liste tirée des vraies sources par .github/scripts/lister-images.sh) :
+#   construite : bank-api et l'image du TP05, reconstruites depuis main.
+#                Bloquant sur TOUTE vulnérabilité HIGH/CRITICAL corrigeable (OS et bibliothèques) :
+#                c'est notre code et nos dépendances, la correction nous appartient (même seuil que
+#                le job `container` de ci.yml).
+#   deployee   : images du chart Argo CD déployé par terraform/labs.
+#                Bloquant sur les paquets OS HIGH/CRITICAL corrigeables : on les corrige en montant le
+#                chart ou en surchargeant un tag. Les CVE de binaires tiers (Go...) ne partent que si
+#                l'amont recompile : visibles dans l'onglet Security, non bloquantes.
+#   outil      : images des pipelines (maven, buildah, trivy, gitleaks, semgrep, zap...).
+#                Informatif : elles ne sont pas livrées ; un rouge permanent sur une image qu'on ne
+#                maîtrise pas finirait ignoré et masquerait les vraies alertes.
+#
+# Rouge = « il y a quelque chose à faire », jamais seulement « il existe une CVE ».
+# Exceptions : .trivyignore (justifiées, datées), consignées dans docs/journal-securite.md.
+name: scan-images
+
+on:
+  schedule:
+    # Tous les lundis à 04:00 UTC (05:00 ou 06:00 à Paris)
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+  # Validation du scan lui-même quand il change (sans publication dans l'onglet Security sur une PR)
+  push:
+    branches: [main]
+    paths: [".github/workflows/scan-images.yml", ".github/scripts/lister-images.sh"]
+  pull_request:
+    paths: [".github/workflows/scan-images.yml", ".github/scripts/lister-images.sh"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scan-images-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lister:
+    name: Lister les images
+    runs-on: ubuntu-24.04
+    outputs:
+      matrice: ${{ steps.liste.outputs.matrice }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: liste
+        run: |
+          matrice="$(.github/scripts/lister-images.sh)"
+          .github/scripts/lister-images.sh --lisible
+          # Une liste vide signifierait une extraction cassée, pas un dépôt sans image
+          [ "$(jq length <<< "$matrice")" -gt 0 ] || { echo "::error::Aucune image trouvée"; exit 1; }
+          echo "matrice=$matrice" >> "$GITHUB_OUTPUT"
+
+  scanner:
+    name: ${{ matrix.famille }} ${{ matrix.image }}
+    needs: lister
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read # checkout (Dockerfiles, .trivyignore)
+      security-events: write # envoi des résultats SARIF dans l'onglet Security
+    strategy:
+      fail-fast: false
+      # Sous les quotas de téléchargement anonymes des registres publics
+      max-parallel: 5
+      matrix:
+        include: ${{ fromJSON(needs.lister.outputs.matrice) }}
+    env:
+      IMAGE: ${{ matrix.image }}
+      FAMILLE: ${{ matrix.famille }}
+      CONTEXTE: ${{ matrix.contexte }}
+      SLUG: ${{ matrix.slug }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Trivy (version et empreinte épinglées)
+        run: |
+          TP_BIN="$HOME/.local/bin" tp/scripts/installer-outils.sh trivy
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Construction (images du dépôt)
+        if: matrix.famille == 'construite'
+        run: docker build -t "$IMAGE" "$CONTEXTE"
+      # Rapports complets d'abord : ils existent même quand la barrière échoue ensuite
+      - name: Rapports (SARIF pour l'onglet Security, JSON pour la synthèse)
+        run: |
+          trivy image --quiet --scanners vuln --severity HIGH,CRITICAL --format sarif \
+            --output "trivy-$SLUG.sarif" "$IMAGE"
+          trivy image --quiet --scanners vuln --severity HIGH,CRITICAL --format json \
+            --output "trivy-$SLUG.json" "$IMAGE"
+          jq --arg famille "$FAMILLE" --arg image "$IMAGE" '. + {famille: $famille, image: $image}' \
+            "trivy-$SLUG.json" > "rapport-$SLUG.json"
+      - uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+        if: github.event_name != 'pull_request'
+        with:
+          sarif_file: trivy-${{ matrix.slug }}.sarif
+          # Une catégorie par image, sinon chaque envoi remplacerait le précédent
+          category: trivy-image-${{ matrix.slug }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rapport-${{ matrix.slug }}
+          path: rapport-${{ matrix.slug }}.json
+          retention-days: 30
+      - name: Barrière
+        run: |
+          case "$FAMILLE" in
+            construite) PORTEE=() ;;
+            deployee)   PORTEE=(--pkg-types os) ;;
+            *) echo "Famille « $FAMILLE » : informative, pas de barrière."; exit 0 ;;
+          esac
+          trivy image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+            --ignorefile .trivyignore "${PORTEE[@]}" --exit-code 1 "$IMAGE"
+
+  synthese:
+    name: Synthèse
+    needs: [lister, scanner]
+    if: always() && needs.lister.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: rapport-*
+          path: rapports
+          merge-multiple: true
+      - name: Tableau récapitulatif
+        env:
+          ATTENDUES: ${{ needs.lister.outputs.matrice }}
+        run: |
+          {
+            echo "## Scan hebdomadaire des images (HIGH et CRITICAL)"
+            echo
+            echo "| Famille | Image | Total | Corrigeables | dont OS | Bloquant |"
+            echo "|---|---|---|---|---|---|"
+            jq -rs 'sort_by(.famille, .image)[] |
+              [.Results[]? | .Class as $classe | .Vulnerabilities[]? | . + {classe: $classe}] as $v |
+              ([$v[] | select((.FixedVersion // "") != "")]) as $c |
+              ([$c[] | select(.classe == "os-pkgs")]) as $os |
+              (if .famille == "construite" then ($c | length)
+               elif .famille == "deployee" then ($os | length) else 0 end) as $bloquant |
+              "| \(.famille) | `\(.image)` | \($v | length) | \($c | length) | \($os | length) | \(if .famille == "outil" then "informatif" elif $bloquant > 0 then "**\($bloquant)**" else "0" end) |"' \
+              rapports/*.json
+            recus="$(find rapports -name '*.json' | wc -l)"
+            attendus="$(jq length <<< "$ATTENDUES")"
+            echo
+            echo "$recus image(s) scannée(s) sur $attendus. Détail : onglet Security, catégories trivy-image-*."
+            if [ "$recus" -lt "$attendus" ]; then
+              echo
+              echo "> Des scans ont échoué avant de produire leur rapport : voir les jobs en erreur."
+            fi
+            echo
+            echo "« Bloquant » compte avant exceptions (.trivyignore) ; la barrière de chaque job fait foi."
+          } >> "$GITHUB_STEP_SUMMARY"
