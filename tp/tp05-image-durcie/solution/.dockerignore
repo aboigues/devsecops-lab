@@ -1,0 +1,3 @@
+# Contexte de build minimal : seul Main.java est utile
+*
+!Main.java

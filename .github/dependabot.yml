@@ -11,6 +11,13 @@ updates:
     cooldown: { default-days: 7 }
     groups:
       maven: { patterns: ["*"] }
+  # Travaux pratiques : les versions des énoncés restent à jour comme celles de l'application
+  - package-ecosystem: maven
+    directories: [/tp/tp01-tests-couverture/starter, /tp/tp01-tests-couverture/solution, /tp/tp04-sca-sbom/projet]
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+    groups:
+      tp-maven: { patterns: ["*"] }
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }

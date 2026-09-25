@@ -1,0 +1,32 @@
+package fr.telemach.tp01;
+
+import java.math.BigDecimal;
+import java.util.Objects;
+
+/** Règles métier d'un virement entre deux comptes de la banque. */
+public class ServiceVirement {
+
+	/** Au-delà, un virement exige une validation renforcée (hors périmètre du TP). */
+	public static final BigDecimal PLAFOND = new BigDecimal("10000.00");
+
+	public void virer(Compte source, Compte cible, BigDecimal montant) {
+		Objects.requireNonNull(source, "compte source");
+		Objects.requireNonNull(cible, "compte cible");
+		if (montant == null || montant.signum() <= 0) {
+			throw new IllegalArgumentException("Le montant doit être strictement positif");
+		}
+		if (montant.scale() > 2) {
+			throw new IllegalArgumentException("Le montant a au plus deux décimales");
+		}
+		if (montant.compareTo(PLAFOND) > 0) {
+			throw new IllegalArgumentException("Montant supérieur au plafond de " + PLAFOND + " EUR");
+		}
+		if (source.id().equals(cible.id())) {
+			throw new IllegalArgumentException("Virement vers le même compte");
+		}
+		// TODO 1 : refuser le virement si le solde de la source est insuffisant
+		//          (lever SoldeInsuffisantException). Le découvert n'est pas autorisé.
+		source.debiter(montant);
+		cible.crediter(montant);
+	}
+}

@@ -1,0 +1,5 @@
+# Configuration CodeQL. Exception tracée dans docs/journal-securite.md (2026-09-25) :
+# les starter/ des travaux pratiques sont VOLONTAIREMENT vulnérables (injection SQL du TP03,
+# workflow injectable du TP07) ; ce sont des énoncés, pas du code livré. Les solution/ restent analysées.
+paths-ignore:
+  - tp/*/starter/**

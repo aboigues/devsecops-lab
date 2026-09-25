@@ -12,5 +12,9 @@ rendered/
 sbom.cdx.json
 zap-report.*
 
+# Travaux pratiques : artefacts produits localement par les apprenants et verify.sh
+tp/**/target/
+tp/**/.terraform.lock.hcl
+
 # Contexte Claude Code local
 CLAUDE.local.md

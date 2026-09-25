@@ -1,0 +1,4 @@
+# TODO 7 : deux NetworkPolicy dans le namespace soldes (documents YAML séparés par ---) :
+#   1. « tout-refuser » : podSelector vide, policyTypes Ingress ET Egress, aucune règle ;
+#   2. « soldes-http-depuis-ingress » : n'autorise que le port TCP 8080 des pods soldes,
+#      depuis le namespace ingress-nginx.

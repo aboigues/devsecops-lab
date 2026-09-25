@@ -27,19 +27,19 @@ moteur CI principal, cible Kubernetes ou OpenShift, profondeur Terraform.
 | Séquence | Contenu | Modalité |
 |---|---|---|
 | 1h | CALMS (Culture, Automation, Lean, Measurement, Sharing) ; coût d'un défaut selon la phase de détection ; atelier « où sont nos contrôles aujourd'hui ? » | Atelier collectif |
-| 1h30 | Stratégie de tests : pyramide unitaires / web / intégration, couverture comme garde-fou (pas comme objectif) | Démonstration + lab 1 |
+| 1h30 | Stratégie de tests : pyramide unitaires / web / intégration, couverture comme garde-fou (pas comme objectif) | Démonstration + lab 1 ([TP01](../../tp/tp01-tests-couverture/)) |
 | 2h | GitLab CI : stages, jobs, artefacts, rapports JUnit et couverture ; branche protégée, merge request obligatoire, fusion humaine | Lab 2 : push direct refusé, premier pipeline vert en MR |
-| 2h | Secrets : détection, historique Git, rotation ; SAST Semgrep, lecture et tri des résultats (vrai / faux positif) | Lab 3 : secret injecté puis traité |
+| 2h | Secrets : détection, historique Git, rotation ; SAST Semgrep, lecture et tri des résultats (vrai / faux positif) | Lab 3 : secret injecté puis traité ([TP02](../../tp/tp02-secrets/), [TP03](../../tp/tp03-sast/)) |
 | 0h30 | Quiz et bilan de la journée | Évaluation formative |
 
 ## Jour 2 — Chaîne d'approvisionnement et infrastructure
 
 | Séquence | Contenu | Modalité |
 |---|---|---|
-| 1h30 | SCA et SBOM (CycloneDX) : vulnérabilités transitives, seuils, exceptions tracées | Lab 4 |
-| 1h30 | Images : multi-stage, non-root, construction sans privilège (Buildah), scan d'image | Lab 5 |
-| 2h30 | Terraform : providers, modules, state distant et verrouillage, séparation des étapes ; scan IaC | Lab 6 : lecture et extension du module de la plateforme |
-| 1h | Jenkins et Bitbucket : transposition du pipeline, points de vigilance (socket Docker, épinglage) | Lab 7 : comparatif guidé |
+| 1h30 | SCA et SBOM (CycloneDX) : vulnérabilités transitives, seuils, exceptions tracées | Lab 4 ([TP04](../../tp/tp04-sca-sbom/)) |
+| 1h30 | Images : multi-stage, non-root, construction sans privilège (Buildah), scan d'image | Lab 5 ([TP05](../../tp/tp05-image-durcie/)) |
+| 2h30 | Terraform : providers, modules, state distant et verrouillage, séparation des étapes ; scan IaC | Lab 6 : lecture et extension du module de la plateforme ; [TP06](../../tp/tp06-iac-terraform/) |
+| 1h | Jenkins et Bitbucket : transposition du pipeline, points de vigilance (socket Docker, épinglage) | Lab 7 : comparatif guidé ; [TP07](../../tp/tp07-securite-ci/) (sécurité de la CI) |
 | 0h30 | Quiz et bilan | Évaluation formative |
 
 ## Jour 3 — Déploiement sécurisé et mise en situation
@@ -47,13 +47,16 @@ moteur CI principal, cible Kubernetes ou OpenShift, profondeur Terraform.
 | Séquence | Contenu | Modalité |
 |---|---|---|
 | 1h30 | GitOps avec Argo CD : état désiré, synchronisation, dérive, rollback ; la CI sans accès au cluster | Lab 8 |
-| 1h30 | Kubernetes et OpenShift : Pod Security Admission, SCC, NetworkPolicy, Route | Lab 9 : même application sur les deux cibles |
-| 1h | DAST avec ZAP : lecture du rapport, correction (en-têtes de sécurité) | Lab 10 |
+| 1h30 | Kubernetes et OpenShift : Pod Security Admission, SCC, NetworkPolicy, Route | Lab 9 : même application sur les deux cibles ; [TP08](../../tp/tp08-kubernetes-psa/) |
+| 1h | DAST avec ZAP : lecture du rapport, correction (en-têtes de sécurité) | Lab 10 ([TP09](../../tp/tp09-dast-zap/)) |
 | 0h30 | Orchestration de release en entreprise : positionnement de XL Release / XL Deploy face au GitOps | Exposé + discussion |
 | 2h | Mise en situation : une vulnérabilité, un secret et une dérive de configuration sont introduits ; chaque participant les détecte et les corrige jusqu'au déploiement | Évaluation sommative |
 
 ## Supports
 
+Travaux pratiques : [`tp/`](../../tp/README.md), un dossier par lab réalisable en local (`starter/` à
+compléter, `solution/`, `verify.sh` rejoué par la CI) ; les labs 2, 7 et 8 et la mise en situation se
+déroulent sur la plateforme déployée.
 Étude de cas fil rouge des trois jours : `docs/scenario-entreprise.md` (Néobanque Exemple).
 Cas concrets de chaque gate (sorties réelles des outils, scénarios à rejouer) : `docs/gates-securite.md`.
 Cas réels du dépôt : `docs/journal-securite.md`.

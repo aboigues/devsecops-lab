@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: soldes
+  # TODO 1 : Pod Security Admission. Faire appliquer (enforce) le profil « restricted » à ce
+  #          namespace, avec les labels pod-security.kubernetes.io/... : tout pod non conforme sera
+  #          refusé à l'admission, même si quelqu'un contourne la CI.

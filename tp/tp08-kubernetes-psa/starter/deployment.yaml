@@ -1,0 +1,39 @@
+# Le Deployment du micro-service « soldes », copié d'un vieux tutoriel « qui marche ».
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: soldes
+  namespace: soldes
+  labels:
+    app.kubernetes.io/name: soldes
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: soldes
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: soldes
+    spec:
+      # TODO 2 : au niveau du pod : pas de montage automatique du jeton de compte de service,
+      #          runAsNonRoot, profil seccomp RuntimeDefault.
+      containers:
+        - name: soldes
+          # TODO 3 : une image épinglée (version explicite), jamais latest.
+          # TODO 8 : trivy signalera ensuite KSV-0125 pour ce registre : lire l'étape 5 du README.
+          image: ghcr.io/neobanque-exemple/soldes:latest
+          ports:
+            - name: http
+              containerPort: 8080
+          # TODO 4 : au niveau du conteneur : pas de mode privilégié, pas d'élévation de privilèges,
+          #          système de fichiers racine en lecture seule, toutes les capacités Linux retirées.
+          securityContext:
+            privileged: true
+          # TODO 5 : des ressources demandées et une limite mémoire (un pod sans limite peut
+          #          affamer le nœud, donc les autres apprenants).
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          # TODO 6 : le système de fichiers étant en lecture seule, monter un emptyDir sur /tmp.

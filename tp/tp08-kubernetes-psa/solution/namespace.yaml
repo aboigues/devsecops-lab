@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: soldes
+  labels:
+    # Tout pod non conforme au profil restricted est refusé à l'admission (défense en profondeur :
+    # même si la CI est contournée, le cluster dit non).
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    # Avertissements et audit au même niveau : visibles dans kubectl et dans le journal d'audit
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

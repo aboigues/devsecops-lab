@@ -90,3 +90,33 @@ Constats réels relevés par la chaîne sur ce dépôt, et leur traitement. Sert
 - **Enseignement** : une mise à jour automatique n'est pas une mise à jour sûre. Sans gate bloquante
   et sans fusion humaine, cette PR aurait été fusionnée automatiquement ; ici la CI l'a arrêtée et un
   humain a tranché.
+
+## 2026-09-25 — Scanner IaC aveugle sur les ressources Scaleway (trivy config)
+
+- **Détection** : écriture du TP06 (`tp/tp06-iac-terraform`), module volontairement mal configuré.
+- **Constat** : `trivy config` (0.74.0, toutes sévérités) rend **0 constat** sur un module Scaleway qui
+  ouvre SSH à `0.0.0.0/0` par défaut, accepte par défaut tout trafic entrant et publie un bucket en
+  `public-read`. Aucune règle de Trivy ne couvre ces ressources Scaleway. Le « 0 constat » du job `iac`
+  sur `terraform/` ne prouve donc rien pour la plateforme elle-même.
+- **Analyse** : la plateforme n'est pas exposée aujourd'hui (validation `admin_cidrs` qui refuse
+  `0.0.0.0/0`, `inbound_default_policy = "drop"`, bucket de state privé), mais ces protections reposent
+  sur la relecture, pas sur un contrôle automatique.
+- **Traitement** : le TP06 enseigne la parade (blocs `validation` et `terraform test` avec fournisseur
+  simulé, sans compte ni coût). Suite prévue : des tests `terraform test` pour les modules de
+  `terraform/modules/`, exécutés par le job `iac`.
+- **Enseignement** : un scanner vert ne vaut que pour ce qu'il sait lire. Vérifier la couverture d'un
+  outil sur son propre fournisseur avant de se fier à son silence.
+
+## 2026-09-25 — Énoncés de TP volontairement vulnérables exclus de CodeQL (exception)
+
+- **Contexte** : les `starter/` des travaux pratiques (`tp/`) contiennent des défauts **voulus** : une
+  injection SQL (TP03), un workflow GitHub injectable (TP07). CodeQL (`build-mode: none`) analyse tout le
+  code Java et Actions du dépôt : ces énoncés lèveraient des alertes bloquantes.
+- **Décision** : `paths-ignore: tp/*/starter/**` dans `.github/codeql/codeql-config.yml`. Exception ciblée
+  (les seuls `starter/`), les `solution/` restent analysées.
+- **Mesures compensatoires** : les énoncés ne sont ni construits ni livrés ; le workflow `tp` vérifie que
+  chaque `starter/` échoue à sa validation (le défaut est intentionnel et détecté) et que chaque
+  `solution/` la passe. Aucun secret n'est versionné, même factice : la clé AWS du TP02 est générée à
+  l'exécution, la gate secrets reste donc sans exception. Le workflow du TP07 est hors de
+  `.github/workflows/` : il n'est jamais exécuté par GitHub.
+- **À revoir** : si un `starter/` devait un jour être construit ou déployé.
