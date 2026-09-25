@@ -1,0 +1,28 @@
+# Construction native OpenShift : le cluster clone le dépôt et construit app/Dockerfile
+# (stratégie Docker, exécutée par Buildah sans privilège), puis pousse dans l'ImageStream.
+# Alternative au pipeline externe quand le registre de la CI n'est pas joignable par le cluster.
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: bank-api
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/aboigues/devsecops-lab.git
+      ref: main
+    contextDir: app
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: bank-api:lab
+  resources:
+    limits:
+      memory: 2Gi
+  runPolicy: Serial
+  successfulBuildsHistoryLimit: 3
+  failedBuildsHistoryLimit: 3

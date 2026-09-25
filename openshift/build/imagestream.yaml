@@ -1,0 +1,10 @@
+# ImageStream : registre interne OpenShift de l'image bank-api.
+# lookupPolicy.local permet au Deployment de référencer « bank-api:lab » sans connaître
+# l'adresse du registre ni le nom du projet (identique sur tout cluster OpenShift).
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: bank-api
+spec:
+  lookupPolicy:
+    local: true

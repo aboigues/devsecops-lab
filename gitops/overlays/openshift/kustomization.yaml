@@ -1,11 +1,21 @@
 # Overlay OpenShift : même base, exposition via Route au lieu d'un Ingress.
-# L'image est construite par le pipeline et poussée vers un registry lisible par le cluster.
+# L'image est construite dans le cluster (openshift/build : BuildConfig -> ImageStream bank-api:lab)
+# et résolue localement grâce à l'annotation resolve-names : aucun registre externe ni secret de pull.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../base
   - route.yaml
+patches:
+  - target:
+      kind: Deployment
+      name: bank-api
+    patch: |-
+      - op: add
+        path: /spec/template/metadata/annotations
+        value:
+          alpha.image.policy.openshift.io/resolve-names: "*"
 images:
   - name: bank-api
-    newName: quay.io/example/bank-api
-    newTag: initial
+    newName: bank-api
+    newTag: lab
