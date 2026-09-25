@@ -120,3 +120,27 @@ Constats réels relevés par la chaîne sur ce dépôt, et leur traitement. Sert
   l'exécution, la gate secrets reste donc sans exception. Le workflow du TP07 est hors de
   `.github/workflows/` : il n'est jamais exécuté par GitHub.
 - **À revoir** : si un `starter/` devait un jour être construit ou déployé.
+
+## 2026-09-25 — Images Argo CD du lab vulnérables (scan hebdomadaire des images)
+
+- **Détection** : mise au point du workflow `scan-images` (Trivy 0.74.0), qui scanne chaque lundi les
+  images construites, déployées et utilisées par le dépôt, et non plus seulement à chaque PR.
+- **Constat** : le chart Argo CD 10.9.2 (dernière version publiée, 2026-09-17) déployé par `terraform/labs`
+  embarque des vulnérabilités HIGH/CRITICAL de **paquets OS corrigeables** : 8 dans
+  `redis:8.6.4-alpine`, 17 dans `ghcr.io/dexidp/dex:v2.45.1` (133 corrigeables au total, binaires Go
+  compris). `quay.io/argoproj/argocd:v3.5.3` : 0 au niveau OS (115 dans ses binaires, non bloquantes).
+  Les images construites par le dépôt (`bank-api`, image du TP05) sont à 0.
+- **Analyse** : monter le chart ne corrige rien, il est déjà à jour. `redis:8.6.7-alpine` est mesurée à
+  0 vulnérabilité OS corrigeable. dex v2.45.1 est la dernière version publiée (mars 2026) ; or le lab ne
+  configure aucun SSO : dex y est une surface d'attaque sans usage.
+- **Remédiation proposée** (PR séparée, à valider par un déploiement réel) : dans les `values` du
+  `helm_release.argocd`, surcharger le tag redis (`8.6.7-alpine`) et désactiver dex
+  (`dex.enabled = false`). En attendant, le scan hebdomadaire reste rouge sur ces deux images : c'est
+  voulu, il y a quelque chose à faire.
+- **Images d'outils des pipelines** (informatif, non bloquant) : vulnérabilités corrigeables mesurées
+  dans `zaproxy/zap-stable:2.17.0` (157), `zricethezav/gitleaks:v8.30.1` (56),
+  `atlassian/default-image:4` (423) ; 0 pour `maven:3.9.16-eclipse-temurin-25` et `quay.io/buildah/stable:v1.43.4`.
+  Ces images ne sont pas livrées, mais elles s'exécutent dans la CI avec le code : à surveiller aux
+  montées de version.
+- **Enseignement** : une image verte le jour de la PR ne le reste pas. Le scan périodique constate la
+  dérive ; la correction dépend de qui maîtrise l'image, d'où une politique de blocage par famille.

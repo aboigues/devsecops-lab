@@ -129,7 +129,7 @@ pousser sur `main` et de fusionner (`.claude/settings.json`). Vulnérabilité : 
 | `Jenkinsfile`, `bitbucket-pipelines.yml` | Mêmes contrôles sur Jenkins et Bitbucket |
 | `tp/` | Travaux pratiques : 9 TP (`starter/`, `solution/`, `verify.sh`), outils installés à versions épinglées |
 | `docs/` | Étude de cas Néobanque Exemple, gates de sécurité avec exemples, journal de sécurité, comparatif CI, OpenShift, XL Deploy/Release, programme de formation |
-| `.github/` | CI (gates), rejeu des TP, CodeQL, Dependabot, CODEOWNERS |
+| `.github/` | CI (gates), rejeu des TP, scan hebdomadaire des images, CodeQL, Dependabot, CODEOWNERS |
 
 ## Déployer une session
 
@@ -175,6 +175,10 @@ soit moins de 4 EUR pour une session de 3 jours laissée allumée en continu.
 - **State Terraform** : il contient des secrets ; bucket privé, versionné, verrouillage natif (`use_lockfile`).
 - **Contrôles bloquants** : HIGH/CRITICAL corrigeables sur dépendances et image, MEDIUM+ sur l'IaC,
   toute alerte ZAP, couverture < 80 % (détail et exemples : `docs/gates-securite.md`).
+- **Scan hebdomadaire des images** (`scan-images`, lundi 04:00 UTC) : les images construites
+  (bloquant sur toute vulnérabilité HIGH/CRITICAL corrigeable), celles du chart Argo CD déployé
+  (bloquant sur les paquets OS corrigeables) et les images d'outils des pipelines (informatif) sont
+  rescannées, résultats dans l'onglet Security. Une image verte le jour de la PR ne le reste pas.
 - **Chaîne d'approvisionnement de la CI** : actions GitHub épinglées par SHA, images d'outils par digest,
   `GITHUB_TOKEN` en lecture seule, workflows analysés par zizmor et CodeQL, Dependabot avec délai de
   carence de 7 jours, fusion toujours humaine.
