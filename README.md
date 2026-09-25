@@ -110,6 +110,17 @@ de l'outil (injection SQL, clé AWS restée dans l'historique, Log4Shell, pod pr
 un workflow GitHub...) : **[`docs/gates-securite.md`](docs/gates-securite.md)**. Les constats réels
 traités sur ce dépôt sont dans [`docs/journal-securite.md`](docs/journal-securite.md).
 
+## Surveillance de la CI : Mirador
+
+Les gates empêchent un changement dangereux d'entrer ; encore faut-il savoir quand la chaîne elle-même
+casse. La CI GitHub Actions de ce dépôt est déclarée auprès de
+[Mirador](https://github.com/aboigues/mirador), un agent de surveillance des pipelines développé et opéré
+par le même auteur : il détecte les échecs, les classe par niveau de risque avec des règles
+déterministes, et propose un correctif dans une Issue qu'un humain valide avant toute pull request.
+Mirador ne commite jamais directement, ce qui reste cohérent avec la branche `main` protégée ci-dessus.
+
+Périmètre : Mirador surveille GitHub Actions uniquement, pas le GitLab auto-hébergé des sessions de formation.
+
 ## Contribuer
 
 Aucun commit direct sur `main`, pour personne (ruleset GitHub sans exception) : branche, pull request,
