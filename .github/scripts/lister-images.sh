@@ -16,9 +16,16 @@ cd "$(git rev-parse --show-toplevel)"
 LISTE="$(mktemp)"
 trap 'rm -f "$LISTE"' EXIT
 
+# slug : identifiant unique de l'image scannée (tag compris), pour les artefacts.
+# categorie : identifiant STABLE (sans tag ni digest), pour l'onglet Security. Une alerte ne se ferme
+# que si la même catégorie est renvoyée sans elle : avec le tag dans la catégorie, chaque montée de
+# version laissait les alertes de l'ancienne version ouvertes à vie (journal, 2026-09-25).
 ligne() { # famille image contexte
-  jq -cn --arg f "$1" --arg i "$2" --arg c "${3:-}" \
-    '{famille: $f, image: $i, contexte: $c, slug: ($f + "-" + ($i | gsub("[^A-Za-z0-9._-]"; "-")))}'
+  jq -cn --arg f "$1" --arg i "$2" --arg c "${3:-}" '
+    def nettoie: gsub("[^A-Za-z0-9._-]"; "-");
+    {famille: $f, image: $i, contexte: $c,
+     slug: ($f + "-" + ($i | nettoie)),
+     categorie: ("trivy-" + $f + "-" + ($i | sub("@sha256:.*$"; "") | sub(":[^:/]+$"; "") | nettoie))}'
 }
 
 {

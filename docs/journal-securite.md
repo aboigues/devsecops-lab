@@ -147,3 +147,18 @@ Constats réels relevés par la chaîne sur ce dépôt, et leur traitement. Sert
   montées de version.
 - **Enseignement** : une image verte le jour de la PR ne le reste pas. Le scan périodique constate la
   dérive ; la correction dépend de qui maîtrise l'image, d'où une politique de blocage par famille.
+
+## 2026-09-25 — Alertes orphelines dans l'onglet Security (défaut de conception du scan d'images)
+
+- **Détection** : premier scan hebdomadaire sur `main` après la correction d'Argo CD : scan vert, mais
+  141 alertes Trivy toujours ouvertes pour dex (retiré) et redis 8.6.4 (remplacée par 8.6.7).
+- **Cause** : la catégorie SARIF contenait le tag de l'image (`trivy-image-...-redis-8.6.4-alpine`). Une
+  alerte ne se ferme que si la **même catégorie** est renvoyée sans elle ; une image retirée ou montée de
+  version n'était plus jamais renvoyée sous son ancienne catégorie. Chaque montée de version aurait
+  laissé des alertes ouvertes à vie, rendant l'onglet Security inutilisable.
+- **Remédiation** : catégorie stable par image, sans tag ni digest (`trivy-deployee-...-redis`) ;
+  suppression des analyses `trivy-image-*` obsolètes via l'API. Les images d'outils des pipelines
+  (1 299 alertes sur 1 555, sans action possible) ne sont plus envoyées dans l'onglet Security :
+  synthèse du run et artefact seulement.
+- **Enseignement** : un tableau d'alertes n'est utile que si une alerte corrigée se ferme toute seule.
+  Tester le cycle complet (apparition, correction, fermeture), pas seulement l'apparition.
