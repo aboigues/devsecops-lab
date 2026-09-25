@@ -133,10 +133,13 @@ Constats réels relevés par la chaîne sur ce dépôt, et leur traitement. Sert
 - **Analyse** : monter le chart ne corrige rien, il est déjà à jour. `redis:8.6.7-alpine` est mesurée à
   0 vulnérabilité OS corrigeable. dex v2.45.1 est la dernière version publiée (mars 2026) ; or le lab ne
   configure aucun SSO : dex y est une surface d'attaque sans usage.
-- **Remédiation proposée** (PR séparée, à valider par un déploiement réel) : dans les `values` du
-  `helm_release.argocd`, surcharger le tag redis (`8.6.7-alpine`) et désactiver dex
-  (`dex.enabled = false`). En attendant, le scan hebdomadaire reste rouge sur ces deux images : c'est
-  voulu, il y a quelque chose à faire.
+- **Remédiation** (PR séparée, même jour) : les valeurs du chart passent dans
+  `terraform/labs/argocd-values.yaml`, lu par Terraform **et** par le scan (ce qui est scanné est ce qui
+  est déployé). redis surchargée en `8.6.7-alpine` épinglée par digest ; dex désactivé
+  (`dex.enabled: false`). Rendu du chart vérifié (plus de Deployment dex) ; barrière du scan verte sur
+  les deux images déployées restantes (redis, argocd).
+- **Reste à faire** : valider en déploiement réel (connexion admin à Argo CD, synchronisation des
+  applications apprenants) lors du prochain `apply` du lab.
 - **Images d'outils des pipelines** (informatif, non bloquant) : vulnérabilités corrigeables mesurées
   dans `zaproxy/zap-stable:2.17.0` (157), `zricethezav/gitleaks:v8.30.1` (56),
   `atlassian/default-image:4` (423) ; 0 pour `maven:3.9.16-eclipse-temurin-25` et `quay.io/buildah/stable:v1.43.4`.

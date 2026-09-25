@@ -11,11 +11,8 @@ resource "helm_release" "argocd" {
   version    = var.argocd_chart_version
   namespace  = kubernetes_namespace_v1.argocd.metadata[0].name
 
-  # Pas d'exposition publique : accès formateur via kubectl port-forward
-  values = [yamlencode({
-    configs = { params = { "server.insecure" = false } }
-    server  = { service = { type = "ClusterIP" } }
-  })]
+  # Valeurs partagées avec le scan hebdomadaire des images (commentées dans le fichier)
+  values = [file("${path.module}/argocd-values.yaml")]
 }
 
 resource "kubernetes_namespace_v1" "learner" {

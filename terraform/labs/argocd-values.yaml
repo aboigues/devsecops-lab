@@ -1,0 +1,25 @@
+# Valeurs du chart Argo CD du lab (version : var.argocd_chart_version).
+# Lues par Terraform (helm_release.argocd) ET par le scan hebdomadaire des images
+# (.github/scripts/lister-images.sh) : ce qui est scanné est exactement ce qui est déployé.
+
+# Pas d'exposition publique : accès formateur via kubectl port-forward
+configs:
+  params:
+    server.insecure: false
+server:
+  service:
+    type: ClusterIP
+
+# dex : fournisseur SSO d'Argo CD. Le lab n'en configure aucun (accès formateur par le compte admin) :
+# dex n'était qu'une surface d'attaque, avec 17 vulnérabilités OS corrigeables et aucune version
+# amont plus récente que la v2.45.1 (journal de sécurité, 2026-09-25). À réactiver avec un SSO réel.
+dex:
+  enabled: false
+
+# redis : l'image du chart 10.9.2 (8.6.4-alpine) porte 8 vulnérabilités OS corrigeables ; 8.6.7-alpine
+# est mesurée à 0 (Trivy 0.74.0, 2026-09-25). Tag lisible + digest immuable, comme les Dockerfiles.
+# À retirer quand le chart embarquera une version égale ou plus récente.
+# Ne jamais utiliser 7.4.0 <= version < 8.0.0 (licence non libre, cf. commentaire du chart).
+redis:
+  image:
+    tag: 8.6.7-alpine@sha256:ac2da09bc822f325a9f68f533120b86fa39c1b8db46b3aa7c1bbea7fdfd4fcba

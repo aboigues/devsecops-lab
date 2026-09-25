@@ -26,10 +26,12 @@ ligne() { # famille image contexte
   ligne construite bank-api:scan app
   ligne construite soldes:scan tp/tp05-image-durcie/solution
 
-  # 2. Déployées par le lab : images du chart Argo CD, à la version fixée dans terraform/labs.
+  # 2. Déployées par le lab : images du chart Argo CD, à la version fixée dans terraform/labs et avec
+  #    les mêmes valeurs que le déploiement (surcharges d'images, composants désactivés).
   CHART="$(sed -n '/variable "argocd_chart_version"/,/^}/s/.*default *= *"\(.*\)".*/\1/p' terraform/labs/variables.tf)"
   [ -n "$CHART" ] || { echo "Version du chart Argo CD introuvable dans terraform/labs/variables.tf" >&2; exit 1; }
   helm template argocd argo-cd --repo https://argoproj.github.io/argo-helm --version "$CHART" \
+      --values terraform/labs/argocd-values.yaml \
     | grep -oE 'image: *"?[^" ]+' | sed -E 's/image: *"?//' | sort -u \
     | while read -r img; do ligne deployee "$img"; done
 
