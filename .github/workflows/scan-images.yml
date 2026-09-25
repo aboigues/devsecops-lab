@@ -16,7 +16,9 @@
 #                l'amont recompile : visibles dans l'onglet Security, non bloquantes.
 #   outil      : images des pipelines (maven, buildah, trivy, gitleaks, semgrep, zap...).
 #                Informatif : elles ne sont pas livrées ; un rouge permanent sur une image qu'on ne
-#                maîtrise pas finirait ignoré et masquerait les vraies alertes.
+#                maîtrise pas finirait ignoré et masquerait les vraies alertes. Pour la même raison,
+#                elles ne vont pas dans l'onglet Security (plus de 1 000 alertes sans action possible) :
+#                synthèse du run et rapport JSON en artefact seulement.
 #
 # Rouge = « il y a quelque chose à faire », jamais seulement « il existe une CVE ».
 # Exceptions : .trivyignore (justifiées, datées), consignées dans docs/journal-securite.md.
@@ -107,11 +109,11 @@ jobs:
           jq --arg famille "$FAMILLE" --arg image "$IMAGE" '. + {famille: $famille, image: $image}' \
             "trivy-$SLUG.json" > "rapport-$SLUG.json"
       - uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && matrix.famille != 'outil'
         with:
           sarif_file: trivy-${{ matrix.slug }}.sarif
-          # Une catégorie par image, sinon chaque envoi remplacerait le précédent
-          category: trivy-image-${{ matrix.slug }}
+          # Une catégorie STABLE par image (sans tag) : une montée de version ferme les alertes corrigées
+          category: ${{ matrix.categorie }}
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: rapport-${{ matrix.slug }}
@@ -158,7 +160,7 @@ jobs:
             recus="$(find rapports -name '*.json' | wc -l)"
             attendus="$(jq length <<< "$ATTENDUES")"
             echo
-            echo "$recus image(s) scannée(s) sur $attendus. Détail : onglet Security, catégories trivy-image-*."
+            echo "$recus image(s) scannée(s) sur $attendus. Détail : onglet Security (images construites et déployées, catégories trivy-*), artefacts rapport-* (toutes)."
             if [ "$recus" -lt "$attendus" ]; then
               echo
               echo "> Des scans ont échoué avant de produire leur rapport : voir les jobs en erreur."
