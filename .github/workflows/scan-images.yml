@@ -27,12 +27,20 @@ on:
     # Tous les lundis à 04:00 UTC (05:00 ou 06:00 à Paris)
     - cron: "0 4 * * 1"
   workflow_dispatch:
-  # Validation du scan lui-même quand il change (sans publication dans l'onglet Security sur une PR)
+  # Quand le scan ou les images déployées changent (sans publication dans l'onglet Security sur une PR)
   push:
     branches: [main]
-    paths: [".github/workflows/scan-images.yml", ".github/scripts/lister-images.sh"]
+    paths:
+      - ".github/workflows/scan-images.yml"
+      - ".github/scripts/lister-images.sh"
+      - "terraform/labs/argocd-values.yaml"
+      - "terraform/labs/variables.tf"
   pull_request:
-    paths: [".github/workflows/scan-images.yml", ".github/scripts/lister-images.sh"]
+    paths:
+      - ".github/workflows/scan-images.yml"
+      - ".github/scripts/lister-images.sh"
+      - "terraform/labs/argocd-values.yaml"
+      - "terraform/labs/variables.tf"
 
 permissions:
   contents: read
