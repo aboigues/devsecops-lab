@@ -162,3 +162,45 @@ Constats réels relevés par la chaîne sur ce dépôt, et leur traitement. Sert
   synthèse du run et artefact seulement.
 - **Enseignement** : un tableau d'alertes n'est utile que si une alerte corrigée se ferme toute seule.
   Tester le cycle complet (apparition, correction, fermeture), pas seulement l'apparition.
+
+## 2026-09-26 — Premier déploiement réel : neuf défauts qu'aucune CI n'avait vus
+
+- **Contexte** : premier `apply` complet sur Scaleway (projet et application IAM dédiés), puis parcours d'un
+  apprenant de bout en bout : merge request, pipeline GitLab, fusion humaine, merge request GitOps du bot,
+  fusion humaine, synchronisation Argo CD. Toutes les CI GitHub étaient vertes ; ces défauts n'existent
+  qu'au contact de la vraie plateforme.
+- **Constats et traitements** :
+  1. *Quota* : `DEV1-XL` a un quota de 0 sur l'organisation, l'`apply` s'arrête au serveur GitLab. Type par
+     défaut passé à `BASIC2-A4C-16G` (4 vCPU / 16 Go, prix voisin).
+  2. *Jetons PAT jamais créés* : `gitlab-rails runner` s'exécute sous l'utilisateur `git`, qui ne peut pas
+     lire `/root` (700). Le runner attendait indéfiniment son jeton. Script copié dans `/var/opt/gitlab`
+     (propriétaire `git`, 600), exécuté, puis effacé (`shred`) avec l'original.
+  3. *Import de projet refusé (403)* sur un projet sur deux : GitLab garde ses réglages d'instance en cache
+     dans chaque processus web ; l'activation de l'import n'était pas encore visible partout. Pause de 90 s
+     (`time_sleep`) après l'activation.
+  4. *Configuration CI rejetée* : le job de construction s'appelait `image`, mot-clé réservé de GitLab CI
+     (image par défaut). Aucun job n'était créé. Renommé `build-image`.
+  5. *Job GitOps invalide* : `- git commit -am "chore(gitops): ..."` est lu par YAML comme une clé (« : »).
+     Ligne mise entre apostrophes. Détecté grâce au linter CI de GitLab une fois le défaut 4 levé.
+  6. *SCA bloquée par Maven Central* : `trivy fs` sur le `pom.xml` interroge Maven Central, qui répond 429 et
+     bloque l'IP du runner 30 minutes. Comme sur GitHub depuis le 2026-09-23, le JAR construit est analysé
+     hors ligne (`trivy rootfs --offline-scan`) ; aligné aussi dans Jenkins et Bitbucket.
+  7. *Aucun SAST ni détection de secrets sur les merge requests* : depuis GitLab 17, les modèles ne tournent
+     dans un pipeline de MR que si `AST_ENABLE_MR_PIPELINES` vaut `true`. Variable ajoutée. Constat lié :
+     ces jobs sont en `allow_failure` en édition CE, donc informatifs (limite documentée dans le README).
+  8. *Buildah bloqué* : `unshare(CLONE_NEWUSER)` refusé par le profil seccomp par défaut de Docker, puis
+     `remount /` refusé par AppArmor. Vérifié par essais sur la VM runner. Décision : un **second runner,
+     dédié** (tag `buildah`, aucun job sans tag) dont les conteneurs n'ont ni seccomp ni AppArmor, toujours
+     sans `--privileged` ni capacité ajoutée ; seul le job `build-image` l'utilise.
+  9. *Noms d'image courts refusés par Buildah* (`short-name resolution enforced`) : images de base qualifiées
+     `docker.io/library/...` dans `app/Dockerfile` (digests inchangés).
+- **Vérifié en réel après correction** : pipeline de MR vert (8 jobs, dont DAST ZAP : 66 règles OK, 10049 en
+  INFO tracé), pipeline de `main` et MR GitOps ouverte par le bot, deux fusions humaines, application
+  `Synced` et `Healthy`, pods non-root admis en Pod Security `restricted`, pas de boucle GitOps. La règle
+  « discussions résolues » a bloqué une fusion tant qu'un commentaire en fil restait ouvert.
+- **Corrigé en direct puis reporté dans le code, à revérifier au prochain déploiement** : défauts 2 et 8
+  (cloud-init rendu et vérifié, pas encore rejoué sur une VM neuve), défaut 3.
+- **Pistes** : ne pas rejouer la construction d'image sur une MR GitOps (seul `gitops/` change) ; une gate
+  bloquante lisant le rapport SAST en édition CE.
+- **Enseignement** : une chaîne entièrement verte en CI n'a encore rien prouvé sur la plateforme. Chaque
+  gate doit être exercée au moins une fois dans son environnement réel.

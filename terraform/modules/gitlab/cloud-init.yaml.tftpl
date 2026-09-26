@@ -36,7 +36,10 @@ runcmd:
   - DEBIAN_FRONTEND=noninteractive apt-get install -y gitlab-ce=${gitlab_version}
   - apt-mark hold gitlab-ce
   - gitlab-ctl reconfigure
-  - gitlab-rails runner /root/bootstrap-tokens.rb
+  # gitlab-rails runner s'exécute sous l'utilisateur git, qui ne peut pas lire /root (700) : sans cette
+  # copie, les jetons n'étaient jamais créés (constaté en lab, journal 2026-09-26)
+  - install -o git -g git -m 0600 /root/bootstrap-tokens.rb /var/opt/gitlab/bootstrap-tokens.rb
+  - gitlab-rails runner /var/opt/gitlab/bootstrap-tokens.rb
   # Les secrets n'ont plus à rester sur disque une fois consommés
-  - shred -u /root/bootstrap-tokens.rb
+  - shred -u /root/bootstrap-tokens.rb /var/opt/gitlab/bootstrap-tokens.rb
   - sed -i "/initial_root_password/d" /etc/gitlab/gitlab.rb

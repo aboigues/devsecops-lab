@@ -40,8 +40,10 @@ variable "gitlab_version" {
 }
 
 variable "gitlab_instance_type" {
-  type        = string
-  default     = "DEV1-XL"
+  type = string
+  # DEV1-XL (4 vCPU / 12 Go) a un quota de 0 sur les organisations récentes (constaté le 2026-09-26) ;
+  # BASIC2-A4C-16G : 4 vCPU / 16 Go, prix voisin (~0,069 EUR/h), quota disponible par défaut.
+  default     = "BASIC2-A4C-16G"
   description = "GitLab Omnibus : 4 vCPU / 8 Go minimum recommandés"
 }
 

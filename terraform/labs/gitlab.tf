@@ -5,6 +5,14 @@ resource "gitlab_application_settings" "this" {
   password_authentication_enabled_for_git = true
 }
 
+# GitLab met ses réglages d'instance en cache (environ une minute) dans chacun de ses processus web :
+# juste après l'activation de l'import par URL, une création de projet peut encore être refusée
+# (403 sur un projet sur deux, constaté en lab, journal 2026-09-26). On laisse le cache expirer.
+resource "time_sleep" "import_sources" {
+  create_duration = "90s"
+  triggers        = { import_sources = join(",", gitlab_application_settings.this.import_sources) }
+}
+
 resource "gitlab_group" "lab" {
   name             = "DevSecOps Lab"
   path             = "devsecops-lab"
@@ -44,7 +52,7 @@ resource "gitlab_project" "learner" {
   remove_source_branch_after_merge                 = true
   container_registry_access_level                  = "private"
 
-  depends_on = [gitlab_application_settings.this]
+  depends_on = [time_sleep.import_sources]
 }
 
 # `main` n'accepte aucun push direct, pas même d'un administrateur ni du bot GitOps :

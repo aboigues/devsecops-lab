@@ -16,6 +16,9 @@ variables:
   # Seuil de blocage : vulnérabilités HIGH/CRITICAL ayant un correctif disponible
   TRIVY_SEVERITY: HIGH,CRITICAL
   TRIVY_IGNORE_UNFIXED: "true"
+  # Sans cette variable, les modèles SAST et Secret Detection (GitLab 17+) ne tournent PAS dans les
+  # pipelines de merge request : aucune analyse de sécurité sur les MR, sans aucun message.
+  AST_ENABLE_MR_PIPELINES: "true"
 
 workflow:
   rules:
@@ -56,6 +59,8 @@ unit-and-integration:
     - cd app && mvn -B verify
   artifacts:
     when: always
+    # Le JAR livré : c'est lui que le job de SCA analyse (hors ligne, sans interroger Maven Central)
+    paths: [app/target/bank-api-*.jar]
     reports:
       junit:
         - app/target/surefire-reports/TEST-*.xml
@@ -68,9 +73,12 @@ unit-and-integration:
 dependencies:
   extends: .trivy
   stage: analyse
+  needs: [unit-and-integration]
+  # On analyse le JAR réellement livré, identifié HORS LIGNE : « trivy fs » sur le pom.xml interroge
+  # Maven Central, qui répond 429 et bloque l'IP du runner 30 min (constaté en lab, journal 2026-09-26).
   script:
-    - trivy fs --scanners vuln --exit-code 1 app/
-    - trivy fs --format cyclonedx --output sbom.cdx.json app/
+    - trivy rootfs --offline-scan --scanners vuln --exit-code 1 app/target/bank-api-0.0.1-SNAPSHOT.jar
+    - trivy rootfs --offline-scan --format cyclonedx --output sbom.cdx.json app/target/bank-api-0.0.1-SNAPSHOT.jar
   artifacts:
     when: always
     paths: [sbom.cdx.json]
@@ -93,8 +101,12 @@ iac:
     - trivy config --exit-code 1 --severity MEDIUM,HIGH,CRITICAL rendered/
 
 # --- 4. Construction de l'image, sans privilège (Buildah rootless, pas de Docker-in-Docker)
-image:
+build-image:
   stage: package
+  # Runner dédié : Buildah a besoin d'espaces de noms utilisateur, que les profils seccomp et AppArmor
+  # par défaut de Docker interdisent. Seul ce runner les lève (toujours sans --privileged) ; tous les
+  # autres jobs, dont le code des apprenants, gardent les profils par défaut (journal 2026-09-26).
+  tags: [buildah]
   image: quay.io/buildah/stable:v1.43.4
   variables:
     STORAGE_DRIVER: vfs
@@ -151,7 +163,8 @@ gitops:propose:
     - yq -i '.images[0].newName = strenv(CI_REGISTRY_IMAGE) | .images[0].newTag = strenv(CI_COMMIT_SHORT_SHA)' gitops/overlays/lab/kustomization.yaml
     - git config user.name "gitops-bot" && git config user.email "gitops-bot@noreply.invalid"
     - git checkout -b "gitops/$CI_COMMIT_SHORT_SHA"
-    - git commit -am "chore(gitops): bank-api $CI_COMMIT_SHORT_SHA"
+    # Entre apostrophes : « chore(gitops): » ferait lire la ligne comme une clé YAML, pas comme une commande
+    - 'git commit -am "chore(gitops): bank-api $CI_COMMIT_SHORT_SHA"'
     - >
       git push "https://gitops-bot:${GITOPS_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "HEAD:refs/heads/gitops/$CI_COMMIT_SHORT_SHA"
       -o merge_request.create

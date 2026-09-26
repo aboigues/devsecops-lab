@@ -53,8 +53,10 @@ pipeline {
                 }
                 stage('SCA + SBOM') {
                     steps {
-                        sh 'docker run --rm -v "$WORKSPACE:/w" -w /w -e TRIVY_SEVERITY -e TRIVY_IGNORE_UNFIXED $TRIVY fs --scanners vuln --exit-code 1 app/'
-                        sh 'docker run --rm -v "$WORKSPACE:/w" -w /w $TRIVY fs --format cyclonedx --output sbom.cdx.json app/'
+                        // JAR construit à l'étape Tests, identifié hors ligne : « trivy fs » sur le pom.xml
+                        // interroge Maven Central, qui répond 429 et bloque l'IP (journal 2026-09-26)
+                        sh 'docker run --rm -v "$WORKSPACE:/w" -w /w -e TRIVY_SEVERITY -e TRIVY_IGNORE_UNFIXED $TRIVY rootfs --offline-scan --scanners vuln --exit-code 1 app/target/bank-api-0.0.1-SNAPSHOT.jar'
+                        sh 'docker run --rm -v "$WORKSPACE:/w" -w /w $TRIVY rootfs --offline-scan --format cyclonedx --output sbom.cdx.json app/target/bank-api-0.0.1-SNAPSHOT.jar'
                         archiveArtifacts 'sbom.cdx.json'
                     }
                 }

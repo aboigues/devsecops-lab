@@ -10,18 +10,35 @@ write_files:
       set -euo pipefail
       # GitLab met plusieurs minutes à démarrer (reconfigure + certificat) : attente active
       until curl -fsS -o /dev/null "${gitlab_url}/users/sign_in"; do sleep 20; done
-      # Le jeton create_runner est créé juste après le reconfigure : on réessaie jusqu'à ce qu'il existe
-      until RUNNER_TOKEN=$(curl -fsS -X POST "${gitlab_url}/api/v4/user/runners" \
-          -H "PRIVATE-TOKEN: ${runner_token}" \
-          -d runner_type=instance_type -d "description=$(hostname)" \
-          -d run_untagged=true | jq -er .token); do sleep 20; done
+      # Crée un runner d'instance dans GitLab et renvoie son jeton d'authentification. Le jeton
+      # create_runner est créé juste après le reconfigure : on réessaie jusqu'à ce qu'il existe.
+      creer_runner() {
+        local jeton
+        until jeton=$(curl -fsS -X POST "${gitlab_url}/api/v4/user/runners" \
+            -H "PRIVATE-TOKEN: ${runner_token}" -d runner_type=instance_type "$@" | jq -er .token); do sleep 20; done
+        echo "$jeton"
+      }
+      # 1. Runner général : tous les jobs sans tag, profils seccomp et AppArmor par défaut de Docker
       gitlab-runner register --non-interactive \
         --url "${gitlab_url}" \
-        --token "$RUNNER_TOKEN" \
+        --token "$(creer_runner -d "description=$(hostname)" -d run_untagged=true)" \
         --executor docker \
         --docker-image alpine:3 \
         --docker-privileged=false \
         --docker-volumes /cache
+      # 2. Runner dédié à la construction d'images (tag buildah, aucun job sans tag) : Buildah a besoin
+      #    d'espaces de noms utilisateur, que seccomp et AppArmor par défaut interdisent (constaté en lab,
+      #    journal 2026-09-26). Seul ce runner les lève ; toujours sans --privileged ni capacité ajoutée.
+      gitlab-runner register --non-interactive \
+        --url "${gitlab_url}" \
+        --token "$(creer_runner -d "description=$(hostname)-build" -d tag_list=buildah -d run_untagged=false)" \
+        --name "$(hostname)-build" \
+        --executor docker \
+        --docker-image alpine:3 \
+        --docker-privileged=false \
+        --docker-volumes /cache \
+        --docker-security-opt seccomp=unconfined \
+        --docker-security-opt apparmor=unconfined
       sed -i 's/^concurrent = .*/concurrent = ${concurrency}/' /etc/gitlab-runner/config.toml
       systemctl restart gitlab-runner
 
