@@ -140,7 +140,7 @@ pousser sur `main` et de fusionner (`.claude/settings.json`). Vulnérabilité : 
 | `.gitlab-ci.yml` | Pipeline de référence |
 | `Jenkinsfile`, `bitbucket-pipelines.yml` | Mêmes contrôles sur Jenkins et Bitbucket |
 | `tp/` | Travaux pratiques : 9 TP (`starter/`, `solution/`, `verify.sh`), outils installés à versions épinglées |
-| `docs/` | Étude de cas Néobanque Exemple, gates de sécurité avec exemples, journal de sécurité, comparatif CI, OpenShift, XL Deploy/Release, programme de formation |
+| `docs/` | Déploiement réel avec captures, étude de cas Néobanque Exemple, gates de sécurité avec exemples, journal de sécurité, comparatif CI, OpenShift, XL Deploy/Release, programme de formation |
 | `.github/` | CI (gates), rejeu des TP, scan hebdomadaire des images, CodeQL, Dependabot, CODEOWNERS |
 
 ## Déployer une session
@@ -199,8 +199,8 @@ soit moins de 4 EUR pour une session de 3 jours laissée allumée en continu.
 
 **Déploiement réel validé le 2026-09-26** : pipeline complet sur une merge request d'apprenant (tests,
 SAST, secrets, SCA, IaC, image Buildah, scan, DAST), fusion humaine, merge request GitOps du bot, fusion
-humaine, Argo CD `Synced` et `Healthy`. Les neuf défauts qu'aucune CI n'avait vus sont dans
-[`docs/journal-securite.md`](docs/journal-securite.md).
+humaine, Argo CD `Synced` et `Healthy`. Récit et captures : [`docs/deploiement-reel.md`](docs/deploiement-reel.md) ;
+les neuf défauts qu'aucune CI n'avait vus sont dans [`docs/journal-securite.md`](docs/journal-securite.md).
 
 ## Choix de sécurité
 
