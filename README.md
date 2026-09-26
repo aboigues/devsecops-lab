@@ -136,6 +136,7 @@ pousser sur `main` et de fusionner (`.claude/settings.json`). Vulnérabilité : 
 | `terraform/labs` | Configuration GitLab + Argo CD + environnements apprenants (`for_each`) |
 | `app/` | API Spring Boot 4.1 / Java 25 : pyramide de tests, couverture JaCoCo >= 80 %, image non-root compatible OpenShift |
 | `gitops/` | Manifestes Kustomize durcis ; overlays `lab` (Kapsule) et `openshift` (Route) |
+| `openshift/build` | ImageStream + BuildConfig : image construite dans OpenShift (validé sur Developer Sandbox) |
 | `.gitlab-ci.yml` | Pipeline de référence |
 | `Jenkinsfile`, `bitbucket-pipelines.yml` | Mêmes contrôles sur Jenkins et Bitbucket |
 | `tp/` | Travaux pratiques : 9 TP (`starter/`, `solution/`, `verify.sh`), outils installés à versions épinglées |
