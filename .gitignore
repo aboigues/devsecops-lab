@@ -16,5 +16,8 @@ zap-report.*
 tp/**/target/
 tp/**/.terraform.lock.hcl
 
+# Captures et journaux du navigateur piloté (Playwright MCP)
+.playwright-mcp/
+
 # Contexte Claude Code local
 CLAUDE.local.md
