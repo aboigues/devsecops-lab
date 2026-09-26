@@ -86,6 +86,12 @@ qu'un humain ne voie ce qui était déployé. Désormais le job `gitops:propose`
 `gitops/<sha>` et ouvre une merge request ; son jeton est de niveau `developer` et **ne peut pas**
 fusionner (fusion réservée aux mainteneurs). L'apprenant relit, fusionne, et Argo CD synchronise.
 
+**Vérifié en réel (2026-09-26)** : sur le lab déployé, `main` en « No one », merge request GitOps
+ouverte par `gitops-bot`, fusionnée par un humain, application `Healthy` ; une fusion a même été bloquée
+tant qu'un fil de discussion restait ouvert. Captures : [`deploiement-reel.md`](deploiement-reel.md).
+Le verrou côté agent a lui aussi joué : pendant ce déploiement, Claude Code s'est vu refuser un
+`git push ... main` vers le GitLab du lab par `.claude/settings.json`, et le test a été laissé à un humain.
+
 **Et l'agent IA ?** GitHub ne distingue pas un push fait par Alexandre d'un push fait par Claude Code
 avec le même jeton. Le ruleset bloque le push direct pour les deux, mais une fusion par `gh pr merge`
 serait acceptée. D'où un second verrou, côté agent : `.claude/settings.json` interdit à Claude Code
