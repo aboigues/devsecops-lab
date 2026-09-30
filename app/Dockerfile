@@ -2,7 +2,7 @@
 # Images de base épinglées par tag (lisible) ET digest (immuable). Dependabot ne propose que le
 # rafraîchissement du digest (même version, correctifs OS) ; les montées de JDK/Maven sont manuelles.
 # Étape 1 : build Maven (jamais embarquée dans l'image finale)
-FROM docker.io/library/maven:3.9.16-eclipse-temurin-25@sha256:dd8e01b3be719853578c07b57ff8d9bbbbfe746f802226f05b19689420815221 AS build
+FROM docker.io/library/maven:3-eclipse-temurin-24@sha256:a137a467ec89b5713d0be817b55bdba6b4d6ef16e3d05565a79bc08d8e775a1c AS build
 WORKDIR /src
 COPY pom.xml .
 RUN --mount=type=cache,target=/root/.m2 mvn -B -q dependency:go-offline
