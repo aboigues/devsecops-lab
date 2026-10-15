@@ -204,3 +204,30 @@ Constats réels relevés par la chaîne sur ce dépôt, et leur traitement. Sert
   bloquante lisant le rapport SAST en édition CE.
 - **Enseignement** : une chaîne entièrement verte en CI n'a encore rien prouvé sur la plateforme. Chaque
   gate doit être exercée au moins une fois dans son environnement réel.
+
+## 2026-10-15 — Toutes les PR Dependabot rouges : la dérive, pas les mises à jour
+
+- **Détection** : jobs `app` et `container` de la CI en échec sur les 5 PR ouvertes par Dependabot
+  (#14, #15, #17, #18, #19), quel que soit l'écosystème mis à jour (Maven, Docker, Terraform, Actions).
+- **Constat** : aucune de ces PR n'est en cause. Deux constats publiés depuis le dernier run vert de `main`
+  (2026-09-26) :
+  - `jackson-core` / `jackson-databind` 3.1.5, gérés par Spring Boot 4.1.1 (toujours la dernière version
+    stable) : 5 CVE HIGH (CVE-2026-68497, CVE-2026-89407, CVE-2026-89425, CVE-2026-91776,
+    CVE-2026-91777), corrigées en 3.1.7 ;
+  - `libssl3t64` / `openssl` 3.0.13-0ubuntu3.15 dans `eclipse-temurin:25-jre-noble` (digest `b573af9`) :
+    CVE-2026-84782 (HIGH), corrigée en ubuntu3.16. Touchait `bank-api` et l'image du TP05 (`soldes`).
+- **Remédiation** : surcharge `jackson-bom.version` à 3.1.7 dans `app/pom.xml` (même méthode que Tomcat,
+  condition de retrait commentée) ; digest Temurin rafraîchi (`d9a39a2`, mesuré à 0 vulnérabilité
+  HIGH/CRITICAL corrigeable) dans `app/` et dans les solutions des TP05 et TP09.
+- **Défauts de configuration révélés** :
+  - la règle `ignore` de Dependabot visait `maven` et `eclipse-temurin`, mais Dependabot nomme
+    `library/maven` une image écrite `docker.io/library/maven` : la règle ne s'appliquait pas, d'où la
+    PR #15 (JDK 26 hors LTS, tag flottant `3.9`), à fermer. Les deux formes de nom sont désormais listées ;
+  - les Dockerfiles des TP n'étaient pas suivis par Dependabot, alors que l'image du TP05 est scannée
+    chaque semaine comme image construite. Ils sont ajoutés.
+- **Reste ouvert** : `quay.io/argoproj/argocd:v3.5.3` (scan hebdomadaire, famille « déployée ») porte
+  CVE-2026-84782 et CVE-2026-92392 (curl). La v3.5.5 (chart 10.10.5) corrige OpenSSL mais pas curl.
+  Décision à prendre (montée de chart à valider en déploiement réel, exception datée pour curl).
+- **Enseignement** : quand toutes les PR échouent au même endroit, le problème est sur `main`. Une gate
+  bloquante sur les vulnérabilités fait échouer des PR sans rapport : c'est voulu, la dette est
+  visible immédiatement plutôt qu'au prochain déploiement.
