@@ -7,3 +7,13 @@
 # et tirée avec un deploy token en lecture seule. En production, remplacer cette exception par une
 # politique d'admission (Kyverno / OPA Gatekeeper) limitant les registries autorisés.
 KSV-0125
+
+# CVE-2026-92392 (libcurl3t64-gnutls, HIGH) dans quay.io/argoproj/argocd — 2026-10-15
+# Image tierce déployée par terraform/labs. Le correctif Ubuntu (8.18.0-1ubuntu2.8) existe, mais la
+# dernière version publiée d'Argo CD (v3.5.5, chart 10.10.5, 2026-10-12) embarque encore la 2.7 : rien
+# à monter de notre côté. Exposition : la bibliothèque sert au binaire git du repo-server ; la faille
+# touche les envois (upload HTTP/2), or Argo CD ne fait que lire le dépôt GitOps du GitLab du lab
+# (fetch, jamais de push). Argo CD n'est pas exposé publiquement (accès formateur par port-forward).
+# Nos images (bank-api, TP) ne contiennent pas ce paquet ; l'exception, globale, ne masque donc rien d'autre.
+# À retirer dès qu'une version d'Argo CD embarque libcurl >= 8.18.0-1ubuntu2.8 (scan hebdomadaire).
+CVE-2026-92392
