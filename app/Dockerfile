@@ -11,7 +11,7 @@ RUN --mount=type=cache,target=/root/.m2 mvn -B -q package -DskipTests \
  && java -Djarmode=tools -jar target/bank-api-*.jar extract --layers --launcher --destination /extracted
 
 # Étape 2 : image d'exécution minimale (JRE seul, pas de shell de build ni de Maven)
-FROM docker.io/library/eclipse-temurin:25-jre-noble@sha256:b573af9e331196fbc42e246da4df24df9b6c556c73e7efddfde0511f1c9508c5
+FROM docker.io/library/eclipse-temurin:25-jre-noble@sha256:d9a39a23634650173f1e2bbc176227af9728587ecf0f4b62d53e9355cd7a19ab
 WORKDIR /app
 # Couches séparées : les dépendances changent rarement, le code souvent -> cache efficace
 COPY --from=build /extracted/dependencies/ ./
