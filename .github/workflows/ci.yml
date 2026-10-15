@@ -54,7 +54,7 @@ jobs:
         run: |
           docker run --rm -v "$PWD/app/target:/t" "$TRIVY" rootfs --offline-scan \
             --format cyclonedx --output /t/sbom.cdx.json /t/bank-api-0.0.1-SNAPSHOT.jar
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: app-reports
@@ -91,7 +91,7 @@ jobs:
       - name: Journaux de l'application
         if: always()
         run: docker logs bank-api || true
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: dast-report
@@ -116,7 +116,7 @@ jobs:
             terraform -chdir=terraform/$d init -backend=false -input=false
             terraform -chdir=terraform/$d validate
           done
-      - uses: terraform-linters/setup-tflint@1cf010d3c7aef302051ccdb68c14c5dc2efa34ef # v6.3.1
+      - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
         with:
           tflint_version: v0.64.0
       - run: tflint --init && tflint --recursive --config "$PWD/.tflint.hcl"
