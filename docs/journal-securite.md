@@ -225,9 +225,28 @@ Constats réels relevés par la chaîne sur ce dépôt, et leur traitement. Sert
     PR #15 (JDK 26 hors LTS, tag flottant `3.9`), à fermer. Les deux formes de nom sont désormais listées ;
   - les Dockerfiles des TP n'étaient pas suivis par Dependabot, alors que l'image du TP05 est scannée
     chaque semaine comme image construite. Ils sont ajoutés.
-- **Reste ouvert** : `quay.io/argoproj/argocd:v3.5.3` (scan hebdomadaire, famille « déployée ») porte
+- **Suite** (entrée suivante) : `quay.io/argoproj/argocd:v3.5.3` (scan hebdomadaire, famille « déployée ») porte
   CVE-2026-84782 et CVE-2026-92392 (curl). La v3.5.5 (chart 10.10.5) corrige OpenSSL mais pas curl.
   Décision à prendre (montée de chart à valider en déploiement réel, exception datée pour curl).
 - **Enseignement** : quand toutes les PR échouent au même endroit, le problème est sur `main`. Une gate
   bloquante sur les vulnérabilités fait échouer des PR sans rapport : c'est voulu, la dette est
   visible immédiatement plutôt qu'au prochain déploiement.
+
+## 2026-10-15 — Argo CD : montée de chart et exception datée pour curl (scan hebdomadaire des images)
+
+- **Détection** : barrière « déployée » du workflow `scan-images`, rejouée sur la PR #19 (Dependabot,
+  actions) car elle modifie ce workflow.
+- **Constat** : `quay.io/argoproj/argocd:v3.5.3` (chart 10.9.2) porte deux CVE HIGH de paquets OS
+  corrigeables : CVE-2026-84782 (OpenSSL) et CVE-2026-92392 (`libcurl3t64-gnutls`, upload HTTP/2).
+- **Remédiation** : chart 10.10.5 (Argo CD v3.5.5, 2026-10-12, dernière version publiée), qui corrige
+  OpenSSL. Changements du chart relus de 10.9.3 à 10.10.5 : aucun changement cassant pour nos valeurs
+  (ajout facultatif `server.enabled`, montées de dex, désactivé, et de redis_exporter). Rendu vérifié :
+  `argocd:v3.5.5`, redis toujours surchargée en `8.6.7-alpine`.
+- **Exception** : CVE-2026-92392 reste présente en v3.5.5 ; aucune version amont ne la corrige. Exception
+  datée dans `.trivyignore` : la bibliothèque sert au `git` du repo-server, qui ne fait que lire le dépôt
+  GitOps (la faille touche les envois), et Argo CD n'est pas exposé. Barrière rejouée en local : 0.
+- **Reste à faire** : valider le chart 10.10.5 au prochain déploiement réel (connexion admin,
+  synchronisation des applications apprenants) ; retirer l'exception dès qu'Argo CD reconstruit son image.
+- **Enseignement** : sur une image tierce, on corrige ce que l'amont permet de corriger (monter la
+  version) et on trace le reste, avec sa condition de retrait. Une exception sans date de revue serait
+  une désactivation silencieuse.
