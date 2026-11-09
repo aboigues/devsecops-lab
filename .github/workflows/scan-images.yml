@@ -108,7 +108,7 @@ jobs:
             --output "trivy-$SLUG.json" "$IMAGE"
           jq --arg famille "$FAMILLE" --arg image "$IMAGE" '. + {famille: $famille, image: $image}' \
             "trivy-$SLUG.json" > "rapport-$SLUG.json"
-      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+      - uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         if: github.event_name != 'pull_request' && matrix.famille != 'outil'
         with:
           sarif_file: trivy-${{ matrix.slug }}.sarif
