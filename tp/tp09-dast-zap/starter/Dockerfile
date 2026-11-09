@@ -6,7 +6,7 @@ COPY Main.java .
 RUN javac -d /out Main.java
 
 # Étape 2 : exécution sur le JRE seul, épinglé par tag (lisible) et digest (immuable)
-FROM eclipse-temurin:25-jre-noble@sha256:d9a39a23634650173f1e2bbc176227af9728587ecf0f4b62d53e9355cd7a19ab
+FROM eclipse-temurin:25-jre-noble@sha256:a98128a57de944a72bd31fbc79b898edd5a5864d3652071d5bbd2160ab7d7dce
 WORKDIR /app
 COPY --from=build /out/ ./
 # UID arbitraire non-root, groupe 0 : compatible avec la SCC restricted-v2 d'OpenShift

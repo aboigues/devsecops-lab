@@ -46,10 +46,14 @@ jobs:
         working-directory: app
       # On scanne le JAR construit (dépendances réellement embarquées), hors ligne :
       # pas de résolution Maven Central, donc pas de faux vert en cas de limite de débit.
+      # Toutes les barrières Trivy lisent la MÊME liste d'exceptions (.trivyignore, justifiées et
+      # datées) : sans le montage, le conteneur ne la voit pas et une exception validée bloquerait ici
+      # alors qu'elle passe dans scan-images (PR #30, CVE-2026-109518).
       - name: SCA (HIGH/CRITICAL corrigeables = échec)
         run: |
-          docker run --rm -v "$PWD/app/target:/t" "$TRIVY" rootfs --offline-scan --scanners vuln \
-            --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 /t/bank-api-0.0.1-SNAPSHOT.jar
+          docker run --rm -v "$PWD/app/target:/t" -v "$PWD/.trivyignore:/trivyignore:ro" "$TRIVY" \
+            rootfs --offline-scan --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+            --ignorefile /trivyignore --exit-code 1 /t/bank-api-0.0.1-SNAPSHOT.jar
       - name: SBOM CycloneDX
         run: |
           docker run --rm -v "$PWD/app/target:/t" "$TRIVY" rootfs --offline-scan \
@@ -75,8 +79,9 @@ jobs:
         run: docker build -t bank-api:ci app/
       - name: Scan d'image (OS + JRE + dépendances ; HIGH/CRITICAL corrigeables = échec)
         run: |
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$TRIVY" image \
-            --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 bank-api:ci
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD/.trivyignore:/trivyignore:ro" "$TRIVY" image --scanners vuln \
+            --severity HIGH,CRITICAL --ignore-unfixed --ignorefile /trivyignore --exit-code 1 bank-api:ci
       - name: Démarrage de l'application (utilisateur non-root, système de fichiers en lecture seule)
         run: |
           docker run -d --name bank-api --read-only --tmpfs /tmp --cap-drop ALL \
@@ -152,7 +157,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+      - uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
         with:
           advanced-security: false
 

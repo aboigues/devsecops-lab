@@ -8,12 +8,13 @@
 # politique d'admission (Kyverno / OPA Gatekeeper) limitant les registries autorisés.
 KSV-0125
 
-# CVE-2026-92392 (libcurl3t64-gnutls, HIGH) dans quay.io/argoproj/argocd — 2026-10-15
-# Image tierce déployée par terraform/labs. Le correctif Ubuntu (8.18.0-1ubuntu2.8) existe, mais la
-# dernière version publiée d'Argo CD (v3.5.5, chart 10.10.5, 2026-10-12) embarque encore la 2.7 : rien
-# à monter de notre côté. Exposition : la bibliothèque sert au binaire git du repo-server ; la faille
-# touche les envois (upload HTTP/2), or Argo CD ne fait que lire le dépôt GitOps du GitLab du lab
-# (fetch, jamais de push). Argo CD n'est pas exposé publiquement (accès formateur par port-forward).
-# Nos images (bank-api, TP) ne contiennent pas ce paquet ; l'exception, globale, ne masque donc rien d'autre.
-# À retirer dès qu'une version d'Argo CD embarque libcurl >= 8.18.0-1ubuntu2.8 (scan hebdomadaire).
-CVE-2026-92392
+# CVE-2026-109518 (apt / libapt-pkg, HIGH) dans eclipse-temurin:25-jre-noble et quay.io/argoproj/argocd — 2026-11-09
+# Exécution de code à distance pendant un « apt install » (réutilisation de liens physiques lors des
+# reprises de téléchargement, via un miroir ou un proxy malveillant). Le correctif Ubuntu
+# (2.8.4ubuntu0.1 / 3.2.1ubuntu0.1) existe, mais aucune image publiée ne l'embarque encore : ni le dernier
+# digest de eclipse-temurin:25-jre-noble (2026-11-01), ni Argo CD v3.5.7 / v3.6.1 (mesuré, Trivy).
+# Exposition : nulle à l'exécution. La faille n'est déclenchée que par apt lui-même ; bank-api, soldes et
+# Argo CD n'invoquent jamais apt (images d'exécution, UID non-root 10001 pour les nôtres, sans droit
+# d'écrire dans /var/lib/apt). Le paquet n'est présent que parce qu'il fait partie de l'image de base.
+# À retirer dès que le digest Temurin ET l'image Argo CD embarquent apt corrigé (scan hebdomadaire).
+CVE-2026-109518
