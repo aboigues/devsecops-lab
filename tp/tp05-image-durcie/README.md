@@ -91,6 +91,12 @@ docker rm -f soldes
 trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 soldes:durcie
 ```
 
+> **Exceptions** : `verify.sh` passe aussi `--ignorefile ../../.trivyignore`, la liste d'exceptions du
+> dépôt, la même que celle de la CI. Une CVE de l'image de base peut être corrigée par la distribution
+> sans qu'Eclipse Temurin ait encore republié son image : rien à monter de votre côté. Ouvrez ce fichier,
+> chaque exception y est justifiée, datée, et porte sa condition de retrait (voir aussi
+> `docs/journal-securite.md`).
+
 Ces options reproduisent le `securityContext` du Deployment (`gitops/base/deployment.yaml`) : ce qui marche
 ici marchera dans le namespace en Pod Security Admission `restricted`.
 

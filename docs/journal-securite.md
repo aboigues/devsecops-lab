@@ -271,6 +271,10 @@ Constats réels relevés par la chaîne sur ce dépôt, et leur traitement. Sert
 - **Exception** : CVE-2026-109518 (`apt`) reste présente partout : aucune image publiée ne l'embarque
   corrigée (dernier digest Temurin, Argo CD v3.5.7 et v3.6.1 mesurés). Exception datée dans `.trivyignore` :
   la faille ne se déclenche que pendant un `apt install`, que ni nos images ni Argo CD n'exécutent.
+- **Défaut révélé** : l'exception passait dans `scan-images` mais bloquait encore le job `container` de la
+  CI et le TP05 : leur Trivy tournait sans `.trivyignore` (conteneur sans le fichier monté, `verify.sh`
+  lancé hors de la racine). L'exception curl ne l'avait pas montré, `bank-api` n'embarquant pas curl.
+  Toutes les barrières lisent désormais la même liste ; le README du TP05 l'explique à l'apprenant.
 - **Reste à faire** : valider le chart 10.11.7 au prochain déploiement réel ; retirer l'exception apt dès
   que Temurin et Argo CD republient leurs images.
 - **Enseignement** : épingler par digest rend la construction reproductible, mais fige aussi les
