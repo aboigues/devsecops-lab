@@ -250,3 +250,29 @@ Constats réels relevés par la chaîne sur ce dépôt, et leur traitement. Sert
 - **Enseignement** : sur une image tierce, on corrige ce que l'amont permet de corriger (monter la
   version) et on trace le reste, avec sa condition de retrait. Une exception sans date de revue serait
   une désactivation silencieuse.
+
+## 2026-11-09 — Scan hebdomadaire rouge sur les quatre images, et CVE apt sans correctif publié
+
+- **Détection** : workflow `scan-images` du 2026-11-09, barrière en échec sur les quatre images construites
+  et déployées ; job `container` de la CI rouge sur les PR Dependabot depuis le 2026-11-04.
+- **Constat** (Trivy, paquets OS HIGH/CRITICAL corrigeables) :
+  - `eclipse-temurin:25-jre-noble` (digest `d9a39a2`, donc `bank-api` et `soldes`) : `libbrotli1`
+    CVE-2026-111497 et `apt` CVE-2026-109518 ;
+  - `quay.io/argoproj/argocd:v3.5.5` : `apt` CVE-2026-109518, `libbrotli1` CVE-2026-111497, `libcurl3t64-gnutls`
+    CVE-2026-92392 (sous exception depuis le 2026-10-15) ;
+  - `redis:8.6.7-alpine@ac2da09` : `musl` CVE-2026-107891 et `zlib` CVE-2026-85091. Le tag a été republié
+    depuis, mais l'épinglage par digest garde l'ancienne construction.
+- **Remédiation** :
+  - digest Temurin rafraîchi (`a98128a`, 2026-11-01) dans `app/` et les TP05/TP09 : corrige brotli ;
+  - chart Argo CD 10.11.7 (v3.5.7, dernière version de la branche 3.5) : corrige brotli **et curl**.
+    L'exception CVE-2026-92392 est retirée. Notes du chart relues de 10.10.6 à 10.11.7 : aucun changement
+    cassant (ajouts facultatifs, montées de dex et redis_exporter, hôtes SSH connus) ;
+  - redis surchargée en `8.6.8-alpine@c343030`, mesurée à 0.
+- **Exception** : CVE-2026-109518 (`apt`) reste présente partout : aucune image publiée ne l'embarque
+  corrigée (dernier digest Temurin, Argo CD v3.5.7 et v3.6.1 mesurés). Exception datée dans `.trivyignore` :
+  la faille ne se déclenche que pendant un `apt install`, que ni nos images ni Argo CD n'exécutent.
+- **Reste à faire** : valider le chart 10.11.7 au prochain déploiement réel ; retirer l'exception apt dès
+  que Temurin et Argo CD republient leurs images.
+- **Enseignement** : épingler par digest rend la construction reproductible, mais fige aussi les
+  correctifs OS que l'amont publie sous le même tag. Le scan hebdomadaire est ce qui rend ce gel visible.
+

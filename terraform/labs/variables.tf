@@ -28,7 +28,7 @@ variable "learners" {
 
 variable "argocd_chart_version" {
   type    = string
-  default = "10.10.5"
+  default = "10.11.7"
 }
 
 variable "argocd_apps_chart_version" {
