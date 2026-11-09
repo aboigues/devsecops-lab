@@ -42,8 +42,13 @@ check "Ni code source ni Dockerfile dans l'image" \
   bash -c "[ -z \"\$(docker run --rm --entrypoint find '$IMG' / -xdev \( -name Main.java -o -name Dockerfile \) 2>/dev/null)\" ]"
 
 step "4) Scan de l'image (OS + JRE) : aucune HIGH/CRITICAL corrigeable"
+# Exceptions du dépôt (.trivyignore à la racine) : justifiées, datées, les mêmes que la CI. Une CVE de
+# l'image de base sans correctif publié par Eclipse Temurin ne doit pas rendre le TP infaisable.
+IGNORE=()
+[ -f "$TP_ROOT/../.trivyignore" ] && IGNORE=(--ignorefile "$TP_ROOT/../.trivyignore")
 check_verbose "trivy image ne trouve aucune vulnérabilité HIGH/CRITICAL corrigeable" \
-  trivy image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 "$IMG"
+  trivy image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed "${IGNORE[@]}" \
+  --exit-code 1 "$IMG"
 
 step "5) L'image durcie fonctionne sous contraintes (comme dans Kubernetes)"
 docker run -d --name "$NAME" --read-only --tmpfs /tmp --cap-drop ALL \

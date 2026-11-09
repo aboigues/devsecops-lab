@@ -17,9 +17,10 @@ dex:
   enabled: false
 
 # redis : l'image des charts 10.9.2 à 10.10.5 (8.6.4-alpine) porte 8 vulnérabilités OS corrigeables ; 8.6.7-alpine
-# est mesurée à 0 (Trivy 0.74.0, 2026-09-25). Tag lisible + digest immuable, comme les Dockerfiles.
+# était mesurée à 0 (Trivy 0.74.0, 2026-09-25), puis 3 au 2026-11-09 (musl, zlib) : 8.6.8-alpine mesurée à 0
+# (2026-11-09). Tag lisible + digest immuable, comme les Dockerfiles.
 # À retirer quand le chart embarquera une version égale ou plus récente.
 # Ne jamais utiliser 7.4.0 <= version < 8.0.0 (licence non libre, cf. commentaire du chart).
 redis:
   image:
-    tag: 8.6.7-alpine@sha256:ac2da09bc822f325a9f68f533120b86fa39c1b8db46b3aa7c1bbea7fdfd4fcba
+    tag: 8.6.8-alpine@sha256:c343030a535c8c2e430e038f25cca7cfa7497a2b290f12ba2f9003bdfb3086b9
