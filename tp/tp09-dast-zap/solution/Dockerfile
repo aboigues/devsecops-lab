@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Étape 1 : compilation (le JDK et les sources ne sont jamais livrés)
-FROM eclipse-temurin:25-jdk-noble@sha256:589ff4cc3f71aab462e7048a47a0d10edf57fbccde3fceea2281e610bf5880b4 AS build
+FROM eclipse-temurin:25-jdk-noble@sha256:95e350ad1eb738f943e141640f7e3d797e483359a3b33c3864255bfd1ad71f8a AS build
 WORKDIR /src
 COPY Main.java .
 RUN javac -d /out Main.java
